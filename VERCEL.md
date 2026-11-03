@@ -32,7 +32,7 @@ The dashboard stays on Vercel. Supabase provides hosted authentication and Postg
 
 ## 2. Configure Vercel
 
-Set the project **Root Directory** to the repository root (the directory containing `vercel.json`), and use the **Other** framework preset. Vercel detects the root `api/` functions and runs them on Node.js automatically; `credentials-api/` is a separate local-development project and must not be selected as the project root. `vercel.json` pins the project to the Other preset so the static dashboard and API functions deploy together.
+Set the project **Root Directory** to the repository root (the directory containing `vercel.json`), and use the **Other** framework preset. `vercel.json` runs a dependency-free build script and publishes only `dist/`, which contains the dashboard entry point, its JavaScript and CSS, and public assets. The script renames `index3.html` to `index.html`, so the root URL is served directly without a rewrite. Vercel detects the root `api/` functions and runs them on Node.js automatically; `credentials-api/` is a separate local-development project and is intentionally excluded from static output.
 
 In the Vercel project, add these environment variables for Production and Preview. Copy the project URL and keys from **Supabase → Project Settings → API**:
 
@@ -44,7 +44,7 @@ GEMINI_API_KEY=your-google-ai-studio-key
 GEMINI_MODEL=gemini-2.5-flash
 ```
 
-Redeploy Vercel after setting them. The root opens `index3.html`, which contains the complete single-page dashboard with its original in-page navigation and styling.
+Redeploy Vercel after setting them. The root opens the built `index.html`, which contains the complete single-page dashboard with its original in-page navigation and styling.
 
 ## 3. Verify
 
