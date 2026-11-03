@@ -1,0 +1,16 @@
+node_modules/
+**/.env
+**/.env.*
+!**/.env.example
+credentials-api/data/
+credentials-api/*.sqlite
+credentials-api/*.sqlite-shm
+credentials-api/*.sqlite-wal
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+*.log
+*.pfx
+*.pem
+*.key
