@@ -32,6 +32,8 @@ The dashboard stays on Vercel. Supabase provides hosted authentication and Postg
 
 ## 2. Configure Vercel
 
+Set the project **Root Directory** to the repository root (the directory containing `vercel.json`), and use the **Other** framework preset. Vercel detects the root `api/` functions and runs them on Node.js automatically; `credentials-api/` is a separate local-development project and must not be selected as the project root. `vercel.json` pins the project to the Other preset so the static dashboard and API functions deploy together.
+
 In the Vercel project, add these environment variables for Production and Preview. Copy the project URL and keys from **Supabase → Project Settings → API**:
 
 ```text
