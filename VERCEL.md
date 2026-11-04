@@ -19,7 +19,16 @@ The dashboard stays on Vercel. Supabase provides hosted authentication and Postg
 2. In **SQL Editor**, run [`supabase/migrations/202611020001_fieldnote_schema.sql`](./supabase/migrations/202611020001_fieldnote_schema.sql).
 3. In **Authentication → URL Configuration**, set the site URL to `https://fieldnote-eta-six.vercel.app`. Add `https://fieldnote-eta-six.vercel.app/**` to the redirect URL allow list so email confirmation and password recovery return to the deployed app, and add each Preview deployment URL you intend to use (or a suitable Vercel preview wildcard). The app derives email return URLs from the active deployment instead of sending learners to localhost.
 4. In **Authentication → Providers → Google**, enable Google and add the OAuth client ID and client secret from your Google Cloud OAuth client. In Google Cloud, add Supabase's callback URL (`https://<project-ref>.supabase.co/auth/v1/callback`) as an authorized redirect URI for that client. The app uses a server-side PKCE callback and stores the resulting session in an HttpOnly cookie.
-5. Configure Supabase Auth email delivery (SMTP) and the password-recovery email template to show the six-digit `{{ .Token }}` code. The recovery flow requires verifying that code before it allows the user to set a new password. Keep email confirmation enabled; new users are returned to the deployed sign-in page after confirming their email.
+5. Configure Supabase Auth email delivery (SMTP) and the **Reset Password** email template. The recovery form expects a six-digit code, not a clickable recovery link. Use `{{ .Token }}` in the template and do not use `{{ .ConfirmationURL }}` or a localhost URL. For example:
+
+   ```html
+   <h2>Reset your Fieldnote password</h2>
+   <p>Enter this six-digit code in Fieldnote to reset your password:</p>
+   <p style="font-size: 24px; font-weight: bold; letter-spacing: 6px">{{ .Token }}</p>
+   <p>Open https://fieldnote-eta-six.vercel.app, choose Student profile, then Forgot password?</p>
+   ```
+
+   The code is sent to the email address entered in the recovery form (for example, a Gmail inbox). After setting the template, request a new code; previously sent links or codes may be expired. The recovery flow verifies the code before it allows the user to set a new password. Keep email confirmation enabled; new users are returned to the deployed sign-in page after confirming their email.
 6. To create the first administrator, register your own account, then run this once in the Supabase SQL Editor using your account email:
 
    ```sql

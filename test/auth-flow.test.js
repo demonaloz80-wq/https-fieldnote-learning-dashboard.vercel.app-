@@ -119,7 +119,7 @@ test('email registration confirmation returns learners to the active deployment'
   assert.equal(JSON.parse(response.body).confirmationRequired, true);
 });
 
-test('password recovery links return to the active deployment, not localhost', async (t) => {
+test('password recovery code requests return to the active deployment, not localhost', async (t) => {
   withSupabaseConfig(t);
   process.env.FIELDNOTE_APP_URL = 'http://localhost:3000';
   let recoveryUrl;
@@ -140,6 +140,27 @@ test('password recovery links return to the active deployment, not localhost', a
   assert.equal(response.statusCode, 200);
   assert.equal(JSON.parse(response.body).message,
     'Check your email for a password-reset code, then enter it here to reset your password.');
+});
+
+test('production password recovery code requests use the stable Vercel domain', async (t) => {
+  withSupabaseConfig(t);
+  process.env.VERCEL_ENV = 'production';
+  process.env.VERCEL_PROJECT_PRODUCTION_URL = 'fieldnote-eta-six.vercel.app';
+  process.env.FIELDNOTE_APP_URL = 'http://localhost:3000';
+  let recoveryUrl;
+  global.fetch = async (url) => {
+    recoveryUrl = new URL(String(url));
+    return new Response('{}', { status: 200, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const response = createResponse();
+  await fieldnoteApiHandler(createRequest('/api/auth/password-reset-request', 'POST', {
+    email: 'learner@example.test'
+  }), response);
+
+  assert.equal(recoveryUrl.searchParams.get('redirect_to'),
+    'https://fieldnote-eta-six.vercel.app/?auth=password-recovery');
+  assert.equal(response.statusCode, 200);
 });
 
 test('Google OAuth callback exchanges the code and stores the session in HttpOnly cookies', async (t) => {
