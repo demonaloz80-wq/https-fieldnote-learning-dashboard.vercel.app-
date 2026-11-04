@@ -1,0 +1,25 @@
+<p class="service-message" role="alert" ng-if="serviceError">{{ serviceError }}</p>
+<section>
+					<div class="page-heading"><div><div class="eyebrow">Your learning record</div><h1>My learning</h1><p class="subheading">Pick up a lesson or celebrate what you've completed.</p></div></div>
+					<div class="panel" ng-if="enrollments.length">
+						<div class="section-head"><div><h2>Enrolled courses</h2><p class="subheading">{{ completedLessons() }} lessons completed across {{ enrollments.length }} courses.</p></div><button class="button-outline" ng-click="setView('courses')">Find a course</button></div>
+						<div class="learning-list">
+							<article class="learning-row" ng-repeat="enrollment in enrollments track by enrollment.courseId" ng-init="course = courseById(enrollment.courseId)">
+								<img class="learning-thumb" ng-src="{{ course.image }}" alt="">
+								<div class="learning-info"><h3>{{ course.title }}</h3><div class="course-meta"><span>{{ enrollment.completed }} of {{ lessonCount(course) }} lessons</span><span>{{ progressFor(course.id) }}% complete</span></div><div class="progress-track"><div class="progress-fill" ng-style="{width: progressFor(course.id) + '%'}"></div></div></div>
+								<div class="learning-actions">
+									<button class="lesson-button" ng-if="course.curriculum" ng-click="continueCourse(course)">{{ isCourseComplete(enrollment, course) ? 'Review lessons' : 'Continue lessons' }}</button>
+									<button class="lesson-button" ng-if="!course.curriculum" ng-click="completeLesson(course)" ng-disabled="enrollment.completed >= course.lessons">{{ enrollment.completed >= course.lessons ? 'Course complete' : 'Complete a lesson' }}</button>
+									<button class="lesson-button" ng-if="isCourseComplete(enrollment, course)" ng-click="downloadCourseCertificate(course)">Get certificate</button>
+								</div>
+							</article>
+						</div>
+					</div>
+					<section class="panel skill-passport" ng-if="student" aria-labelledby="passportHeading">
+						<div class="section-head"><div><h2 id="passportHeading">Skill passport</h2><p class="subheading">A local summary of course progress and lesson test results.</p></div><button class="button-outline" type="button" ng-click="downloadSkillPassport()" ng-disabled="!enrollments.length">Export JSON</button></div>
+						<p class="notice">This export is not an issuer-signed credential or a blockchain-verified badge.</p>
+						<p ng-if="!enrollments.length">Enroll in a course to start building your skill passport.</p>
+						<div class="passport-table-wrap" ng-if="enrollments.length"><table class="passport-table"><thead><tr><th scope="col">Competency</th><th scope="col">Lessons</th><th scope="col">Progress</th><th scope="col">Tests passed</th></tr></thead><tbody><tr ng-repeat="item in skillPassport() track by item.courseId"><th scope="row">{{ item.category }}: {{ item.courseTitle }}</th><td>{{ item.lessonsCompleted }} of {{ item.lessonsTotal }}</td><td>{{ item.completionPercent }}%</td><td>{{ item.testsPassed }} of {{ item.testsAttempted }}</td></tr></tbody></table></div>
+					</section>
+					<div class="empty-state" ng-if="!enrollments.length"><h3>Your learning list is ready when you are</h3><p>Register your student profile, then enroll in a course to start tracking progress.</p><button class="button-primary" ng-click="setView(student ? 'courses' : 'account')">{{ student ? 'Browse courses' : 'Create student profile' }}</button></div>
+				</section>

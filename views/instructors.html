@@ -1,0 +1,10 @@
+<p class="service-message" role="alert" ng-if="serviceError">{{ serviceError }}</p>
+<section>
+					<div class="page-heading"><div><div class="eyebrow">Learn from people who do the work</div><h1>Meet the instructors</h1><p class="subheading">Experienced guides, thoughtful lessons, practical outcomes.</p></div></div>
+					<div class="instructor-grid">
+						<article class="instructor-card" ng-repeat="instructor in instructors track by instructor.id">
+							<div class="instructor-card-top"><img class="instructor-photo" ng-src="{{ instructor.image }}" alt="Portrait of {{ instructor.name }}"><div><h3>{{ instructor.name }}</h3><div class="instructor-role">{{ instructor.role }}</div></div></div>
+							<p class="instructor-bio">{{ instructor.bio }}</p><div class="instructor-specialty">Courses: <strong>{{ courseTitlesFor(instructor.id) }}</strong></div>
+						</article>
+					</div>
+				</section>

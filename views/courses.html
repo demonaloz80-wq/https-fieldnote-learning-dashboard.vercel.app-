@@ -1,0 +1,21 @@
+<p class="service-message" role="alert" ng-if="serviceError">{{ serviceError }}</p>
+<section>
+										<button class="nav-button" ng-class="{active: view === 'platform'}" ng-click="setView('platform')"><span class="nav-icon">◈</span>Platform Labs</button>
+					<div class="page-heading"><div><div class="eyebrow">Find your next subject</div><h1>Course catalog</h1><p class="subheading">Search practical, instructor-led courses and learn at your pace.</p></div></div>
+					<div class="catalog-toolbar">
+						<div class="search-wrap"><span class="search-icon" aria-hidden="true">⌕</span><input class="text-input search-input" type="search" ng-model="courseQuery" placeholder="Search courses, topics, or instructors" aria-label="Search courses"></div>
+						<select class="select-input" ng-model="categoryFilter" aria-label="Filter by category"><option value="">All subjects</option><option ng-repeat="category in categories" value="{{ category }}">{{ category }}</option></select>
+					</div>
+					<div class="course-grid">
+						<article class="course-card" ng-repeat="course in courses | filter:courseMatches | filter:{category: categoryFilter} track by course.id">
+							<div class="course-image-wrap"><img class="course-image" ng-src="{{ course.image }}" alt=""><span class="course-tag">{{ course.category }}</span></div>
+							<div class="course-body"><h3 class="course-title">{{ course.title }}</h3><div class="instructor-line"><img class="mini-avatar" ng-src="{{ instructorById(course.instructorId).image }}" alt=""><span>{{ instructorById(course.instructorId).name }}</span></div><div class="course-meta"><span>◷ {{ course.duration }}</span><span>{{ lessonCount(course) }} lessons</span></div><p class="subheading">{{ course.description }}</p>
+								<div class="course-tools" ng-if="course.tools"><strong>Tools:</strong> {{ course.tools }}</div>
+								<div class="course-progress" ng-if="enrollmentFor(course.id)"><div class="progress-label"><span>Your progress</span><span>{{ progressFor(course.id) }}%</span></div><div class="progress-track"><div class="progress-fill" ng-style="{width: progressFor(course.id) + '%'}"></div></div></div>
+								<button class="button-outline course-action" ng-click="enroll(course)">{{ enrollmentFor(course.id) ? 'Continue learning' : (student ? 'Enroll in course' : 'Register to enroll') }} <span aria-hidden="true">→</span></button>
+								<button class="text-button course-materials" ng-if="course.curriculum" ng-click="viewCourse(course)">View lessons and PDF guide →</button>
+							</div>
+						</article>
+					</div>
+					<div class="empty-state" ng-if="(courses | filter:courseMatches | filter:{category: categoryFilter}).length === 0"><h3>No courses match that search</h3><p>Try another keyword or choose a different subject.</p></div>
+				</section>

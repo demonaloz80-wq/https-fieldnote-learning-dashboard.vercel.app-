@@ -539,6 +539,7 @@ if (typeof angular !== 'undefined') {
 				$scope.showPassword = false;
 				$scope.serviceError = "";
 				$scope.view = "overview";
+				$scope.viewTemplate = "views/overview.html";
 								$scope.mobileMenuOpen = false;
 				$scope.courseQuery = "";
 				$scope.categoryFilter = "";
@@ -770,9 +771,33 @@ if (typeof angular !== 'undefined') {
 				$scope.loadAuthenticatedUser = loadAuthenticatedUser;
 				loadPublishedCourses();
 				loadRegisteredInstructors();
+				var authRedirectResult = new URLSearchParams($window.location.search).get("auth");
+				if (["google-success", "google-error", "signup-confirmed", "password-recovery"].indexOf(authRedirectResult) === -1) authRedirectResult = "";
+				if (authRedirectResult) $window.history.replaceState({}, "", $window.location.pathname + $window.location.hash);
 				authRequest("/api/auth/me").then(function (result) {
 					loadAuthenticatedUser(result.user);
+					if (authRedirectResult === "google-success") {
+						$scope.$applyAsync(function () { setPage("account"); });
+						showToast("Signed in with Google.");
+					}
 					}).catch(function (error) {
+						if (authRedirectResult) {
+							$scope.$applyAsync(function () {
+								setPage("account");
+								if (authRedirectResult === "signup-confirmed") {
+									$scope.authMode = "login";
+									$scope.formError = "";
+									$scope.resetNotice = "Your email is confirmed. Sign in with your new account.";
+								} else if (authRedirectResult === "password-recovery") {
+									$scope.authMode = "reset-request";
+									$scope.formError = "";
+									$scope.resetNotice = "Enter your email address to request a password-reset code.";
+								} else {
+									$scope.authMode = "login";
+									$scope.formError = "Google sign-in could not be completed. Try again or use email and password.";
+								}
+							});
+						}
 						if (error.status !== 401) $scope.serviceError = error.message;
 					});
 
@@ -827,7 +852,7 @@ if (typeof angular !== 'undefined') {
 				$scope.chooseCommandCourse = function (course) {
 					$scope.stopReading();
 					$scope.selectedCourse = course;
-					$scope.view = "courseDetail";
+					setPage("courseDetail");
 					$scope.closeCommandBar();
 				};
 
@@ -871,6 +896,11 @@ if (typeof angular !== 'undefined') {
 					toastTimer = $timeout(function () { $scope.toastMessage = ""; }, 2600);
 				}
 
+				function setPage(view) {
+					$scope.view = view;
+					$scope.viewTemplate = "views/" + view + ".html";
+				}
+
 				$scope.setView = function (view) {
 					if (view === "learning" && (!$scope.authUser || $scope.authUser.role !== "student")) {
 						$scope.authMode = "login";
@@ -884,7 +914,7 @@ if (typeof angular !== 'undefined') {
 					}
 					if (view !== "lesson") $scope.stopReading();
 					if (view !== "platform") cleanupPlatformLab();
-					$scope.view = view;
+					setPage(view);
 					$scope.mobileMenuOpen = false;
 					$scope.formError = "";
 					if (view === "account") {
@@ -1320,7 +1350,7 @@ if (typeof angular !== 'undefined') {
 				$scope.viewCourse = function (course) {
 					$scope.stopReading();
 					$scope.selectedCourse = course;
-					$scope.view = "courseDetail";
+					setPage("courseDetail");
 				};
 
 				$scope.openLesson = function (index) {
@@ -1337,7 +1367,7 @@ if (typeof angular !== 'undefined') {
 					$scope.lessonNotes = [];
 					$scope.lessonTest = null;
 					$scope.scenarioNodeId = lesson.scenario ? lesson.scenario.start : "";
-					$scope.view = "lesson";
+					setPage("lesson");
 					$scope.refreshLessonNotes();
 				};
 
@@ -1436,6 +1466,15 @@ if (typeof angular !== 'undefined') {
 
 				$scope.lessonCount = function (course) {
 					return course.curriculum ? course.curriculum.length : course.lessons;
+				};
+
+				$scope.courseOutcomes = function (course) {
+					var outcomes = [];
+					(course && course.curriculum || []).forEach(function (lesson) {
+						var outcome = (lesson.objective || "").trim();
+						if (outcome && outcomes.indexOf(outcome) === -1) outcomes.push(outcome);
+					});
+					return outcomes;
 				};
 
 				$scope.resetLessonCode = function () {
@@ -1926,7 +1965,7 @@ if (typeof angular !== 'undefined') {
 				}
 
 				$scope.setAuthMode = function (mode) {
-					$scope.authMode = ["login", "register", "reset-request", "reset-confirm"].indexOf(mode) !== -1 ? mode : "register";
+					$scope.authMode = ["login", "register", "reset-request", "reset-verify", "reset-confirm"].indexOf(mode) !== -1 ? mode : "register";
 					$scope.authForm.password = "";
 					$scope.authForm.resetCode = "";
 					$scope.authForm.newPassword = "";
@@ -1940,6 +1979,10 @@ if (typeof angular !== 'undefined') {
 					$scope.showPassword = !$scope.showPassword;
 				};
 
+				$scope.signInWithGoogle = function () {
+					$window.location.assign("/api/auth/google/start");
+				};
+
 				$scope.requestPasswordReset = function () {
 					var email = ($scope.authForm.email || "").trim();
 					if (!email) {
@@ -1947,7 +1990,24 @@ if (typeof angular !== 'undefined') {
 						return;
 					}
 					authRequest("/api/auth/password-reset/request", "POST", { email: email }).then(function (result) {
+						$scope.authMode = "reset-verify";
+						$scope.resetNotice = result.message;
+						$scope.formError = "";
+					}).catch(function (error) { $scope.formError = error.message; });
+				};
+
+				$scope.verifyPasswordReset = function () {
+					var code = ($scope.authForm.resetCode || "").trim();
+					if (!/^\d{6}$/.test(code)) {
+						$scope.formError = "Enter the six-digit verification code from your email.";
+						return;
+					}
+					authRequest("/api/auth/password-reset/verify", "POST", {
+						email: ($scope.authForm.email || "").trim(),
+						code: code
+					}).then(function (result) {
 						$scope.authMode = "reset-confirm";
+						$scope.authForm.resetCode = "";
 						$scope.resetNotice = result.message;
 						$scope.formError = "";
 					}).catch(function (error) { $scope.formError = error.message; });
@@ -1955,8 +2015,6 @@ if (typeof angular !== 'undefined') {
 
 				$scope.confirmPasswordReset = function () {
 					authRequest("/api/auth/password-reset/confirm", "POST", {
-						email: ($scope.authForm.email || "").trim(),
-						code: ($scope.authForm.resetCode || "").trim(),
 						password: $scope.authForm.newPassword
 					}).then(function (result) {
 						$scope.setAuthMode("login");
@@ -2002,7 +2060,8 @@ if (typeof angular !== 'undefined') {
 						if (result.confirmationRequired) {
 							$scope.authMode = "login";
 							$scope.authForm.email = email;
-							$scope.formError = result.message;
+							$scope.formError = "";
+							$scope.resetNotice = result.message;
 							return;
 						}
 						$scope.submitAttempted = false;
@@ -2039,7 +2098,7 @@ if (typeof angular !== 'undefined') {
 							$scope.studentForm = { role: "student", teachingSubjects: [] };
 							$scope.authMode = "login";
 							$scope.authForm.password = "";
-							$scope.view = "overview";
+							setPage("overview");
 						});
 						showToast("You have signed out.");
 					}).catch(function (error) { showToast(error.message); });

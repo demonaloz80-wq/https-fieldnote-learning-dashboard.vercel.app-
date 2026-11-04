@@ -1,0 +1,46 @@
+<p class="service-message" role="alert" ng-if="serviceError">{{ serviceError }}</p>
+<section>
+					<div class="page-heading">
+						<div><div class="eyebrow">Your learning space</div><h1>Dashboard</h1><p class="subheading">A clear view of what you're learning and what's next.</p></div>
+						<div class="date-label">{{ today | date:'EEEE, MMMM d' }}</div>
+					</div>
+					<div class="welcome-banner">
+						<div class="welcome-copy">
+							<div class="eyebrow">{{ student ? 'Welcome back' : 'Start learning today' }}</div>
+							<h2>{{ student ? student.name.split(' ')[0] + ', keep your momentum.' : 'Make room for a new idea.' }}</h2>
+							<p>{{ student ? 'Your next lesson is only a small step away. Pick up where you left off.' : 'Create your student profile, find a course that interests you, and track every step.' }}</p>
+							<button class="button-primary" ng-click="setView(student ? 'courses' : 'account')">{{ student ? 'Explore courses' : 'Register as a student' }} <span aria-hidden="true">→</span></button>
+						</div>
+						<img class="banner-art" src="https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=520&q=80" alt="Students learning together at a table">
+					</div>
+					<div class="stats-grid">
+						<div class="stat-card"><div class="stat-top"><span>Enrolled courses</span><span class="stat-glyph">▤</span></div><div class="stat-number">{{ enrollments.length }}</div><div class="stat-foot">Courses in your learning list</div></div>
+						<div class="stat-card"><div class="stat-top"><span>Lessons completed</span><span class="stat-glyph">✓</span></div><div class="stat-number">{{ completedLessons() }}</div><div class="stat-foot">Keep a steady learning rhythm</div></div>
+						<div class="stat-card"><div class="stat-top"><span>Average progress</span><span class="stat-glyph">↗</span></div><div class="stat-number">{{ averageProgress() }}%</div><div class="stat-foot">Across your enrolled courses</div></div>
+					</div>
+					<p class="subheading" ng-if="!authUser">Sign in or create a student account, then enroll in a course to track your counts and progress.</p>
+					<section class="panel" ng-if="student" aria-labelledby="studentDetailsHeading" style="margin-bottom:22px">
+						<div class="section-head"><div><h2 id="studentDetailsHeading">Student details</h2><p class="subheading">Your school and certificate information.</p></div><button class="button-outline" type="button" ng-click="setView('account')">Edit profile</button></div>
+						<div class="student-details-grid">
+							<div><div class="student-detail-label">School</div><div class="student-detail-value">{{ student.school || 'Not added' }}</div></div>
+							<div><div class="student-detail-label">Grade 12 matric score</div><div class="student-detail-value">{{ student.matricScore !== '' && student.matricScore !== undefined ? (student.matricScore | number:2) : 'Not added' }}</div></div>
+							<div><div class="student-detail-label">Address</div><div class="student-detail-value">{{ student.address || 'Not added' }}</div></div>
+						</div>
+					</section>
+					<section class="panel daily-goal" aria-labelledby="dailyGoalHeading">
+						<div class="section-head"><div><h2 id="dailyGoalHeading">Daily learning goal</h2><p class="subheading"><strong>{{ learningStreak() }}</strong> day streak. {{ streakEncouragement() }}</p></div><label>Lessons per day <select class="select-input" ng-model="dailyGoal" ng-options="goal for goal in goalOptions" ng-change="saveDailyGoal()"></select></label></div>
+						<div class="progress-label"><span>Today's progress</span><span>{{ lessonsToday() }} of {{ dailyGoal }}</span></div>
+						<div class="progress-track"><div class="progress-fill" ng-style="{width: (lessonsToday() / dailyGoal * 100 > 100 ? 100 : lessonsToday() / dailyGoal * 100) + '%'}"></div></div>
+					</section>
+					<div class="section-head"><div><h2>Picked for curious minds</h2><p class="subheading">Explore a few popular courses to get started.</p></div><button class="text-button" ng-click="setView('courses')">Browse all courses →</button></div>
+					<div class="course-grid">
+						<article class="course-card" ng-repeat="course in courses | limitTo:3 track by course.id">
+							<div class="course-image-wrap"><img class="course-image" ng-src="{{ course.image }}" alt=""><span class="course-tag">{{ course.category }}</span></div>
+							<div class="course-body"><h3 class="course-title">{{ course.title }}</h3><div class="instructor-line"><img class="mini-avatar" ng-src="{{ instructorById(course.instructorId).image }}" alt=""><span>{{ instructorById(course.instructorId).name }}</span></div><div class="course-meta"><span>◷ {{ course.duration }}</span><span>{{ lessonCount(course) }} lessons</span></div>
+								<div class="course-progress" ng-if="enrollmentFor(course.id)"><div class="progress-label"><span>Your progress</span><span>{{ progressFor(course.id) }}%</span></div><div class="progress-track"><div class="progress-fill" ng-style="{width: progressFor(course.id) + '%'}"></div></div></div>
+								<button class="button-outline course-action" ng-click="enroll(course)">{{ enrollmentFor(course.id) ? 'Continue learning' : (student ? 'Enroll in course' : 'Register to enroll') }} <span aria-hidden="true">→</span></button>
+								<button class="text-button course-materials" ng-if="course.curriculum" ng-click="viewCourse(course)">View lessons and PDF guide →</button>
+							</div>
+						</article>
+					</div>
+				</section>

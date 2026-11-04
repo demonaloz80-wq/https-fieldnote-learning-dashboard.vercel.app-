@@ -1,0 +1,58 @@
+<p class="service-message" role="alert" ng-if="serviceError">{{ serviceError }}</p>
+<section>
+					<div class="page-heading"><div><div class="eyebrow">{{ selectedCourse.title }} · Lesson {{ selectedLessonIndex + 1 }} of {{ selectedCourse.curriculum.length }}</div><h1>{{ selectedCourse.curriculum[selectedLessonIndex].title }}</h1><p class="subheading">{{ selectedCourse.curriculum[selectedLessonIndex].objective }}</p></div></div>
+					<div class="detail-actions" ng-if="speechSupported"><button class="button-outline" type="button" ng-click="readCurrentLesson()">Read lesson aloud</button><button class="button-outline" type="button" ng-if="speechActive" ng-click="stopReading()">Stop reading</button></div>
+					<p class="notice" ng-if="!speechSupported">Text-to-speech is not available in this browser.</p>
+					<article class="panel lesson-content">
+						<p>{{ selectedCourse.curriculum[selectedLessonIndex].content }}</p>
+						<div class="lesson-video" ng-if="selectedCourse.curriculum[selectedLessonIndex].videoUrl"><iframe ng-src="{{ youtubeEmbedUrl(selectedCourse.curriculum[selectedLessonIndex].videoUrl) }}" title="Lesson video: {{ selectedCourse.curriculum[selectedLessonIndex].title }}" loading="lazy" referrerpolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe></div>
+						<h2>Key ideas</h2><ul class="lesson-points"><li ng-repeat="point in selectedCourse.curriculum[selectedLessonIndex].keyPoints">{{ point }}</li></ul>
+						<div class="notice" ng-if="selectedCourse.curriculum[selectedLessonIndex].teachingTip"><strong>Instructor note:</strong> {{ selectedCourse.curriculum[selectedLessonIndex].teachingTip }}</div>
+						<div class="code-lab" ng-if="selectedCourse.curriculum[selectedLessonIndex].codeExample">
+								<div class="code-lab-head"><strong>Practice editor</strong><span>{{ selectedCourse.tools || 'Course tools' }} · {{ selectedCourse.curriculum[selectedLessonIndex].codeLanguage }} · runs in this page</span></div>
+							<label class="sr-only" for="lessonCodeEditor">Editable lesson code</label><textarea class="code-editor" id="lessonCodeEditor" ng-model="codeDraft" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="Editable lesson code"></textarea>
+							<div class="code-lab-actions"><button class="run-button" ng-click="runLessonCode()">Run code</button><button class="reset-code" ng-click="resetLessonCode()">Reset example</button></div>
+							<iframe class="code-output" id="lessonCodeOutput" title="Sandboxed lesson code output" sandbox="allow-scripts" ng-if="runnerVisible"></iframe>
+						</div>
+						<div class="practice-box"><strong>Try it yourself</strong><p>{{ selectedCourse.curriculum[selectedLessonIndex].practice }}</p></div>
+						<section class="panel branching-scenario" ng-if="selectedCourse.curriculum[selectedLessonIndex].scenario" aria-labelledby="scenarioHeading">
+							<h2 id="scenarioHeading">Scenario practice</h2>
+							<p>{{ currentScenarioNode().prompt }}</p>
+							<div class="branch-options" ng-if="currentScenarioNode().choices && currentScenarioNode().choices.length"><button class="button-outline" type="button" ng-repeat="choice in currentScenarioNode().choices track by $index" ng-click="chooseScenario(choice)">{{ choice.text }}</button></div>
+							<div class="notice" ng-if="currentScenarioNode().feedback"><strong>{{ currentScenarioNode().outcome }}</strong> {{ currentScenarioNode().feedback }}</div>
+							<button class="button-outline" type="button" ng-if="currentScenarioNode().feedback" ng-click="restartScenario()">Try another choice</button>
+						</section>
+						<section class="panel lesson-test" aria-labelledby="lessonTestHeading">
+							<h2 id="lessonTestHeading">Lesson test</h2>
+							<p class="subheading">Randomized practice questions from this lesson. This is not a secure or proctored exam.</p>
+							<button class="button-outline" type="button" ng-if="!lessonTest" ng-click="startLessonTest()">Start test</button>
+							<div ng-if="lessonTest && !lessonTest.submitted">
+								<div class="test-question" ng-repeat="question in lessonTest.questions track by $index">
+									<strong>Question {{ $index + 1 }} of {{ lessonTest.questions.length }}</strong>
+									<p>{{ question.prompt }}</p>
+									<div class="test-options"><label class="test-option" ng-repeat="option in question.options track by $index"><input type="radio" ng-attr-name="lesson-test-{{$parent.$index}}" ng-model="question.selectedAnswer" ng-value="option">{{ option }}</label></div>
+								</div>
+								<button class="button-primary" type="button" ng-click="submitLessonTest()" ng-disabled="!lessonTestReady()">Submit test</button>
+							</div>
+							<div class="test-result" ng-if="lessonTest && lessonTest.submitted"><strong>Score: {{ lessonTest.score }}/{{ lessonTest.total }}</strong><p>{{ lessonTest.passed ? 'Test passed. You are ready to continue.' : 'Review the lesson key ideas, then try again.' }}</p><button class="button-outline" type="button" ng-click="startLessonTest()">Retake test</button></div>
+						</section>
+						<section class="panel study-copilot" aria-labelledby="copilotHeading">
+							<h2 id="copilotHeading">Study Copilot</h2>
+							<p class="subheading">This local preview uses only the current lesson. It does not send your question to an AI service.</p>
+							<div class="catalog-toolbar"><input class="text-input" type="text" ng-model="copilotQuestion" placeholder="Ask about this lesson"><button class="button-outline" type="button" ng-click="askStudyCopilot()">Find an answer</button></div>
+							<div class="copilot-actions"><button class="button-outline" type="button" ng-click="summarizeCurrentLesson()">Summarize lesson</button><button class="button-outline" type="button" ng-click="createReviewQuestions()">Create review prompts</button></div>
+							<p class="copilot-response" ng-if="copilotResponse">{{ copilotResponse }}</p>
+							<p class="copilot-response" ng-if="copilotSummary"><strong>Summary:</strong> {{ copilotSummary }}</p>
+							<div class="review-question" ng-repeat="question in copilotQuestions track by $index"><p>{{ question.prompt }}</p><button class="text-button" type="button" ng-click="question.revealed = !question.revealed">{{ question.revealed ? 'Hide key idea' : 'Show key idea' }}</button><p ng-if="question.revealed">{{ question.answer }}</p></div>
+						</section>
+						<section class="panel lesson-discussion" aria-labelledby="discussionHeading">
+							<h2 id="discussionHeading">Lesson discussion</h2>
+							<p class="subheading">Notes are saved in this browser and are not shared with other learners.</p>
+							<textarea ng-model="lessonCommentDraft" placeholder="Write a question or note about this lesson"></textarea>
+							<div class="form-actions"><button class="button-outline" type="button" ng-click="postLessonComment()">Save note</button></div>
+							<p ng-if="!lessonNotes.length">No notes for this lesson yet.</p>
+							<div class="discussion-entry" ng-repeat="comment in lessonNotes track by comment.id"><strong>{{ comment.author }}</strong> <time>{{ comment.date }}</time><p>{{ comment.text }}</p></div>
+						</section>
+						<div class="detail-actions"><button class="button-outline" ng-click="viewCourse(selectedCourse)">All lessons</button><button class="button-outline" ng-click="downloadGuide(selectedCourse)">Download PDF study guide</button><button class="button-primary" ng-if="!enrollmentFor(selectedCourse.id)" ng-click="enroll(selectedCourse)">Enroll to track progress</button><button class="button-primary" ng-if="enrollmentFor(selectedCourse.id)" ng-click="completeCurrentLesson()" ng-disabled="lessonIsComplete(selectedCourse, selectedCourse.curriculum[selectedLessonIndex])">{{ lessonIsComplete(selectedCourse, selectedCourse.curriculum[selectedLessonIndex]) ? 'Lesson completed' : 'Mark lesson complete' }}</button><button class="button-outline" ng-if="selectedLessonIndex < selectedCourse.curriculum.length - 1" ng-click="openLesson(selectedLessonIndex + 1)">Next lesson →</button></div>
+					</article>
+				</section>

@@ -153,6 +153,14 @@
 		.lesson-button:disabled { color: #76847a; cursor: default; background: #f5f7f4; }
 		.course-materials { margin-top: 10px; width: 100%; }
 		.detail-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+		.course-overview { margin-top: 22px; padding: 18px; border: 1px solid var(--line); border-radius: 9px; background: linear-gradient(135deg, #f3f7ef, #fbfcf8); }
+		.course-overview h2, .course-curriculum-heading { margin: 4px 0 0; font: 700 18px "Manrope", sans-serif; }
+		.course-outcomes-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+		.course-outcome { display: flex; align-items: flex-start; gap: 10px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 7px; background: white; }
+		.course-outcome-number { flex: none; display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; color: var(--green-dark); background: #eaf0e9; font-size: 11px; font-weight: 700; }
+		.course-outcome p { margin: 2px 0 0; color: var(--ink); font-size: 12px; line-height: 1.5; }
+		.course-structure-note { margin: 13px 0 0; color: var(--muted); font-size: 11px; }
+		.course-curriculum-heading { margin-top: 22px; }
 		.lesson-grid { display: grid; gap: 10px; margin-top: 18px; }
 		.lesson-card { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 14px; border: 1px solid var(--line); border-radius: 8px; background: white; }
 		.lesson-number { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; color: var(--green-dark); background: #eaf0e9; font-weight: 700; }
@@ -283,7 +291,6 @@
 		.form-message { color: #a64334; font-size: 12px; margin: 10px 0 0; }
 		.google-signin-area { margin-top: 18px; }
 		.google-signin { width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; }
-		.google-signin:disabled { opacity: .68; cursor: not-allowed; }
 		.google-mark { color: #4285f4; font: 700 17px "Manrope", sans-serif; }
 		.google-signin-area .subheading { margin: 8px 0 0; }
 		.profile-summary { background: #edf3e9; border-radius: 8px; padding: 20px; }
@@ -308,13 +315,13 @@
 		.icon-button svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 		.icon-button:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
 		body.theme-dark { --ink: #e5ece6; --muted: #a7b5ab; --paper: #111a15; --white: #1b2820; --line: #34453a; --green: #9ac7a4; --green-dark: #183d2e; --shadow: 0 14px 38px rgba(0, 0, 0, .25); }
-		body.theme-dark .topbar, body.theme-dark .panel, body.theme-dark .course-card, body.theme-dark .instructor-card, body.theme-dark .lesson-card, body.theme-dark .profile-summary, body.theme-dark .text-input, body.theme-dark .select-input, body.theme-dark .command-dialog, body.theme-dark .command-dialog input, body.theme-dark .command-results button { background: #1b2820; color: var(--ink); border-color: var(--line); }
+		body.theme-dark .topbar, body.theme-dark .panel, body.theme-dark .course-card, body.theme-dark .instructor-card, body.theme-dark .lesson-card, body.theme-dark .course-overview, body.theme-dark .course-outcome, body.theme-dark .profile-summary, body.theme-dark .text-input, body.theme-dark .select-input, body.theme-dark .command-dialog, body.theme-dark .command-dialog input, body.theme-dark .command-results button { background: #1b2820; color: var(--ink); border-color: var(--line); }
 		body.theme-dark .sidebar-note, body.theme-dark .practice-box, body.theme-dark .nav-button.active, body.theme-dark .nav-button:hover, body.theme-dark .lesson-number { background: #26392d; color: var(--ink); }
 		body.theme-dark .button-outline, body.theme-dark .lesson-button, body.theme-dark .reset-code { background: #1b2820; color: var(--ink); border-color: var(--line); }
 		body.theme-dark .welcome-banner { background: #183d2e; }
 		body.theme-dark .command-results button:hover { background: #26392d; }
 		body.high-contrast { --ink: #000; --muted: #1a1a1a; --paper: #fff; --white: #fff; --line: #000; --green: #003b00; --green-dark: #000; --lime: #ff0; --shadow: none; }
-		body.high-contrast .topbar, body.high-contrast .sidebar, body.high-contrast .panel, body.high-contrast .course-card, body.high-contrast .instructor-card, body.high-contrast .lesson-card, body.high-contrast .profile-summary { background: #fff; color: #000; border: 2px solid #000; }
+		body.high-contrast .topbar, body.high-contrast .sidebar, body.high-contrast .panel, body.high-contrast .course-card, body.high-contrast .instructor-card, body.high-contrast .lesson-card, body.high-contrast .course-overview, body.high-contrast .course-outcome, body.high-contrast .profile-summary { background: #fff; color: #000; border: 2px solid #000; }
 		body.high-contrast .welcome-banner, body.high-contrast .code-lab { background: #000; color: #fff; }
 		body.high-contrast .welcome-copy .eyebrow { color: #ff0; }
 		body.high-contrast button, body.high-contrast input, body.high-contrast select, body.high-contrast textarea { border-color: #000; }
@@ -341,6 +348,7 @@
 			}
 			@media (max-width: 720px) {
 				.section-head { align-items: flex-start; flex-direction: column; }
+				.course-outcomes-grid { grid-template-columns: minmax(0, 1fr); }
 				.lesson-card { grid-template-columns: 32px minmax(0, 1fr); }
 				.lesson-button { grid-column: 2; justify-self: start; }
 				.detail-actions > button { flex: 1 1 180px; }

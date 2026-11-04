@@ -18,3 +18,7 @@ for (const [source, destination] of [
 fs.cpSync(path.join(projectRoot, "assets"), path.join(outputDirectory, "assets"), {
 	recursive: true,
 });
+
+fs.cpSync(path.join(projectRoot, "views"), path.join(outputDirectory, "views"), {
+	recursive: true,
+});
