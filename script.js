@@ -1989,7 +1989,7 @@ if (typeof angular !== 'undefined') {
 						$scope.formError = "Enter the email address for your account.";
 						return;
 					}
-					authRequest("/api/auth/password-reset/request", "POST", { email: email }).then(function (result) {
+					authRequest("/api/auth/password-reset-request", "POST", { email: email }).then(function (result) {
 						$scope.authMode = "reset-verify";
 						$scope.resetNotice = result.message;
 						$scope.formError = "";
@@ -2002,7 +2002,7 @@ if (typeof angular !== 'undefined') {
 						$scope.formError = "Enter the six-digit verification code from your email.";
 						return;
 					}
-					authRequest("/api/auth/password-reset/verify", "POST", {
+					authRequest("/api/auth/password-reset-verify", "POST", {
 						email: ($scope.authForm.email || "").trim(),
 						code: code
 					}).then(function (result) {
@@ -2014,7 +2014,7 @@ if (typeof angular !== 'undefined') {
 				};
 
 				$scope.confirmPasswordReset = function () {
-					authRequest("/api/auth/password-reset/confirm", "POST", {
+					authRequest("/api/auth/password-reset-confirm", "POST", {
 						password: $scope.authForm.newPassword
 					}).then(function (result) {
 						$scope.setAuthMode("login");

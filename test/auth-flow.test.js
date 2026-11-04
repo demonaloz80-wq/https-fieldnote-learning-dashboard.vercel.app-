@@ -129,7 +129,7 @@ test('password recovery links return to the active deployment, not localhost', a
   };
 
   const response = createResponse();
-  await fieldnoteApiHandler(createRequest('/api/auth/password-reset/request', 'POST', {
+  await fieldnoteApiHandler(createRequest('/api/auth/password-reset-request', 'POST', {
     email: 'learner@example.test'
   }), response);
 
@@ -187,7 +187,7 @@ test('password recovery requires code verification before a password can be chan
   };
 
   const verifyResponse = createResponse();
-  await fieldnoteApiHandler(createRequest('/api/auth/password-reset/verify', 'POST', {
+  await fieldnoteApiHandler(createRequest('/api/auth/password-reset-verify', 'POST', {
     email: 'learner@example.test',
     code: '123456'
   }), verifyResponse);
@@ -200,7 +200,7 @@ test('password recovery requires code verification before a password can be chan
 
   const resetToken = resetCookieHeader.match(/fieldnote_password_reset=([^;]+)/)[1];
   const updateResponse = createResponse();
-  await fieldnoteApiHandler(createRequest('/api/auth/password-reset/confirm', 'POST', {
+  await fieldnoteApiHandler(createRequest('/api/auth/password-reset-confirm', 'POST', {
     password: 'a-new-password-long-enough'
   }, { cookie: 'fieldnote_password_reset=' + resetToken }), updateResponse);
   assert.equal(updateResponse.statusCode, 200);
@@ -208,7 +208,7 @@ test('password recovery requires code verification before a password can be chan
   assert.match(updateResponse.body, /Password updated/);
 
   const unverifiedResponse = createResponse();
-  await fieldnoteApiHandler(createRequest('/api/auth/password-reset/confirm', 'POST', {
+  await fieldnoteApiHandler(createRequest('/api/auth/password-reset-confirm', 'POST', {
     password: 'a-new-password-long-enough'
   }), unverifiedResponse);
   assert.equal(unverifiedResponse.statusCode, 401);
