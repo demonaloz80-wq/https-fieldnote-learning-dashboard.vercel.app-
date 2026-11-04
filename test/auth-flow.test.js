@@ -138,6 +138,8 @@ test('password recovery links return to the active deployment, not localhost', a
   assert.equal(recoveryUrl.searchParams.get('redirect_to'),
     'https://fieldnote-preview.vercel.app/?auth=password-recovery');
   assert.equal(response.statusCode, 200);
+  assert.equal(JSON.parse(response.body).message,
+    'Check your email for a password-reset code, then enter it here to reset your password.');
 });
 
 test('Google OAuth callback exchanges the code and stores the session in HttpOnly cookies', async (t) => {
