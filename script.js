@@ -924,6 +924,7 @@ if (typeof angular !== 'undefined') {
 									var fallbackMessage = response.status === 401 ? "Email or password is incorrect." : "Authentication request failed (HTTP " + response.status + "). Please try again.";
 									var requestError = new Error(payload.error || fallbackMessage);
 									requestError.status = response.status;
+									requestError.code = payload.code || "";
 									throw requestError;
 								}
 								if (openedFromFile && payload.sessionToken) {
@@ -1081,8 +1082,10 @@ if (typeof angular !== 'undefined') {
 									$scope.formError = "GitHub authorized you, but Fieldnote could not prepare your learner profile in Supabase. Check that the Fieldnote schema migration is applied and the Vercel Supabase service-role key can insert into profiles.";
 								} else if (authRedirectResult === "github-success") {
 									$scope.authMode = "login";
-									$scope.formError = error.status === 401
-										? "GitHub authorized you, but Fieldnote did not receive a valid session cookie. Allow cookies for fieldnote-eta-six.vercel.app, then sign in again."
+									$scope.formError = error.code === "session_cookie_missing"
+										? "GitHub authorized you, but your browser did not send Fieldnote's secure session cookie. Make sure https://fieldnote-eta-six.vercel.app is open directly (not embedded), allow cookies for this site, and retry."
+										: error.code === "session_cookie_invalid"
+											? "GitHub authorized you, but Supabase rejected the saved session. Check the Supabase Auth logs, then sign in again."
 										: "GitHub authorized you, but Fieldnote could not load your profile. " + (error.message || "Check Supabase Auth and database logs.");
 								} else {
 									$scope.authMode = "login";

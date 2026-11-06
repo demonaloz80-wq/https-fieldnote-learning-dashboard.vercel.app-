@@ -166,6 +166,7 @@ test('production password recovery code requests use the stable Vercel domain', 
 test('GitHub OAuth callback exchanges the code and stores the session in HttpOnly cookies', async (t) => {
   withSupabaseConfig(t);
   const verifier = 'test-pkce-verifier';
+  const accessToken = 'test-access-token-' + 'x'.repeat(7000);
   let exchangeBody;
   const requestedUrls = [];
   global.fetch = async (url, options) => {
@@ -174,12 +175,13 @@ test('GitHub OAuth callback exchanges the code and stores the session in HttpOnl
     if (requestUrl === 'https://project.supabase.co/auth/v1/token?grant_type=pkce') {
       exchangeBody = JSON.parse(options.body);
       return new Response(JSON.stringify({
-        access_token: 'test-access-token',
+        access_token: accessToken,
         refresh_token: 'test-refresh-token',
         expires_in: 3600
       }), { status: 200, headers: { 'Content-Type': 'application/json' } });
     }
     if (requestUrl === 'https://project.supabase.co/auth/v1/user') {
+      assert.equal(options.headers.get('Authorization'), 'Bearer ' + accessToken);
       return new Response(JSON.stringify({
         id: 'github-learner-id',
         email: 'learner@example.test',
@@ -207,9 +209,22 @@ test('GitHub OAuth callback exchanges the code and stores the session in HttpOnl
   assert.equal(response.statusCode, 303);
   assert.equal(response.headers.Location, 'https://fieldnote-preview.vercel.app/?auth=github-success');
   assert.ok(Array.isArray(response.headers['Set-Cookie']));
-  assert.match(response.headers['Set-Cookie'][0], /fieldnote_supabase_session=/);
-  assert.match(response.headers['Set-Cookie'][0], /HttpOnly/);
-  assert.match(response.headers['Set-Cookie'][1], /fieldnote_github_oauth=.*Max-Age=0/);
+  const sessionCookies = response.headers['Set-Cookie'].filter((cookie) =>
+    /^fieldnote_supabase_session\.\d+=/.test(cookie) && /Max-Age=604800/.test(cookie)
+  );
+  assert.ok(sessionCookies.length > 1);
+  sessionCookies.forEach((cookie) => {
+    assert.ok(cookie.length < 3100);
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /Secure/);
+  });
+  assert.match(response.headers['Set-Cookie'].at(-1), /fieldnote_github_oauth=.*Max-Age=0/);
+
+  const browserCookieHeader = sessionCookies.map((cookie) => cookie.split(";", 1)[0]).join("; ");
+  const meResponse = createResponse();
+  await fieldnoteApiHandler(createRequest('/api/auth/me', 'GET', {}, { cookie: browserCookieHeader }), meResponse);
+  assert.equal(meResponse.statusCode, 200);
+  assert.equal(JSON.parse(meResponse.body).user.id, 'github-learner-id');
 });
 
 test('authenticated GitHub user receives a least-privilege student profile if the profile trigger did not create one', async (t) => {
@@ -264,6 +279,39 @@ test('authenticated GitHub user receives a least-privilege student profile if th
   assert.equal(insertPreference, 'resolution=ignore-duplicates,return=representation');
   assert.equal(JSON.parse(response.body).user.role, 'student');
   assert.equal(JSON.parse(response.body).user.name, 'GitHub Learner');
+});
+
+test('authentication endpoint distinguishes a missing browser session cookie', async (t) => {
+  withSupabaseConfig(t);
+  const response = createResponse();
+  await fieldnoteApiHandler(createRequest('/api/auth/me'), response);
+
+  assert.equal(response.statusCode, 401);
+  assert.equal(JSON.parse(response.body).code, 'session_cookie_missing');
+});
+
+test('authentication endpoint clears an invalid saved browser session', async (t) => {
+  withSupabaseConfig(t);
+  const sessionCookie = Buffer.from(JSON.stringify({
+    access_token: 'rejected-access-token',
+    refresh_token: 'test-refresh-token',
+    expires_at: Math.floor(Date.now() / 1000) + 3600
+  })).toString('base64url');
+  global.fetch = async () => new Response(JSON.stringify({ message: 'invalid JWT' }), {
+    status: 401,
+    headers: { 'Content-Type': 'application/json' }
+  });
+
+  const response = createResponse();
+  await fieldnoteApiHandler(createRequest('/api/auth/me', 'GET', {}, {
+    cookie: 'fieldnote_supabase_session=' + sessionCookie
+  }), response);
+
+  assert.equal(response.statusCode, 401);
+  assert.equal(JSON.parse(response.body).code, 'session_cookie_invalid');
+  assert.ok(response.headers['Set-Cookie'].some((cookie) =>
+    /fieldnote_supabase_session\.0=.*Max-Age=0/.test(cookie)
+  ));
 });
 
 test('GitHub OAuth callback does not report success when learner profile setup fails', async (t) => {
