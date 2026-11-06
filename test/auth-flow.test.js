@@ -190,6 +190,60 @@ test('GitHub OAuth callback exchanges the code and stores the session in HttpOnl
   assert.match(response.headers['Set-Cookie'][1], /fieldnote_github_oauth=.*Max-Age=0/);
 });
 
+test('authenticated GitHub user receives a least-privilege student profile if the profile trigger did not create one', async (t) => {
+  withSupabaseConfig(t);
+  const sessionCookie = Buffer.from(JSON.stringify({
+    access_token: 'test-access-token',
+    refresh_token: 'test-refresh-token',
+    expires_at: Math.floor(Date.now() / 1000) + 3600
+  })).toString('base64url');
+  let profileLookups = 0;
+  let insertedProfile;
+  let insertPreference;
+  global.fetch = async (url, options = {}) => {
+    const requestUrl = String(url);
+    if (requestUrl === 'https://project.supabase.co/auth/v1/user') {
+      return new Response(JSON.stringify({
+        id: 'github-learner-id',
+        email: 'learner@example.test',
+        created_at: '2026-01-01T00:00:00.000Z',
+        user_metadata: { name: 'GitHub Learner', fieldnote_role: 'admin' }
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl.startsWith('https://project.supabase.co/rest/v1/profiles?')) {
+      profileLookups++;
+      const rows = profileLookups === 1 ? [] : [{
+        id: 'github-learner-id',
+        full_name: 'GitHub Learner',
+        role: 'student',
+        profile: {},
+        created_at: '2026-01-01T00:00:00.000Z'
+      }];
+      return new Response(JSON.stringify(rows), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    assert.equal(requestUrl, 'https://project.supabase.co/rest/v1/profiles');
+    insertedProfile = JSON.parse(options.body);
+    insertPreference = options.headers.get('Prefer');
+    return new Response('[]', { status: 201, headers: { 'Content-Type': 'application/json' } });
+  };
+
+  const response = createResponse();
+  await fieldnoteApiHandler(createRequest('/api/auth/me', 'GET', {}, {
+    cookie: 'fieldnote_supabase_session=' + sessionCookie
+  }), response);
+
+  assert.equal(response.statusCode, 200);
+  assert.deepEqual(insertedProfile, {
+    id: 'github-learner-id',
+    full_name: 'GitHub Learner',
+    role: 'student',
+    profile: {}
+  });
+  assert.equal(insertPreference, 'resolution=ignore-duplicates,return=representation');
+  assert.equal(JSON.parse(response.body).user.role, 'student');
+  assert.equal(JSON.parse(response.body).user.name, 'GitHub Learner');
+});
+
 test('GitHub OAuth callback reports provider rejection without forwarding its description', async (t) => {
   withSupabaseConfig(t);
   const response = createResponse();
