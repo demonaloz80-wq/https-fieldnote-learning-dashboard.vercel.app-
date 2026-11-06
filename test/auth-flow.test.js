@@ -190,6 +190,50 @@ test('GitHub OAuth callback exchanges the code and stores the session in HttpOnl
   assert.match(response.headers['Set-Cookie'][1], /fieldnote_github_oauth=.*Max-Age=0/);
 });
 
+test('GitHub OAuth callback reports provider rejection without forwarding its description', async (t) => {
+  withSupabaseConfig(t);
+  const response = createResponse();
+  await fieldnoteApiHandler(createRequest(
+    '/api/auth/github/callback?error=server_error&error_description=private-provider-detail',
+    'GET',
+    {},
+    { cookie: 'fieldnote_github_oauth=test-verifier' }
+  ), response);
+
+  assert.equal(response.statusCode, 303);
+  assert.equal(response.headers.Location,
+    'https://fieldnote-preview.vercel.app/?auth=github-error&reason=provider-rejected');
+  assert.doesNotMatch(response.headers.Location, /private-provider-detail/);
+});
+
+test('GitHub OAuth callback reports missing PKCE verifier', async (t) => {
+  withSupabaseConfig(t);
+  const response = createResponse();
+  await fieldnoteApiHandler(createRequest('/api/auth/github/callback?code=one-time-code'), response);
+
+  assert.equal(response.statusCode, 303);
+  assert.equal(response.headers.Location,
+    'https://fieldnote-preview.vercel.app/?auth=github-error&reason=missing-verifier');
+});
+
+test('GitHub OAuth callback reports rejected session exchange without exposing provider details', async (t) => {
+  withSupabaseConfig(t);
+  global.fetch = async () => new Response(JSON.stringify({
+    error: 'invalid_grant',
+    error_description: 'private-pkce-detail'
+  }), { status: 400, headers: { 'Content-Type': 'application/json' } });
+
+  const response = createResponse();
+  await fieldnoteApiHandler(createRequest('/api/auth/github/callback?code=one-time-code', 'GET', {}, {
+    cookie: 'fieldnote_github_oauth=test-verifier'
+  }), response);
+
+  assert.equal(response.statusCode, 303);
+  assert.equal(response.headers.Location,
+    'https://fieldnote-preview.vercel.app/?auth=github-error&reason=session-exchange');
+  assert.doesNotMatch(response.headers.Location, /private-pkce-detail/);
+});
+
 test('password recovery requires code verification before a password can be changed', async (t) => {
   withSupabaseConfig(t);
   let verificationBody;

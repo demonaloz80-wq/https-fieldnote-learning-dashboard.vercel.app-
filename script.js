@@ -1038,7 +1038,9 @@ if (typeof angular !== 'undefined') {
 				loadPublishedCourses();
 				loadRegisteredInstructors();
 				var authRedirectResult = new URLSearchParams($window.location.search).get("auth");
+				var authRedirectReason = new URLSearchParams($window.location.search).get("reason");
 				if (["github-success", "github-error", "signup-confirmed", "password-recovery"].indexOf(authRedirectResult) === -1) authRedirectResult = "";
+				if (["cancelled", "provider-rejected", "missing-code", "missing-verifier", "session-exchange"].indexOf(authRedirectReason) === -1) authRedirectReason = "";
 				if (authRedirectResult) $window.history.replaceState({}, "", $window.location.pathname + $window.location.hash);
 				authRequest("/api/auth/me").then(function (result) {
 					loadAuthenticatedUser(result.user);
@@ -1058,9 +1060,28 @@ if (typeof angular !== 'undefined') {
 									$scope.authMode = "reset-request";
 									$scope.formError = "";
 									$scope.resetNotice = "Enter your email address to request a password-reset code.";
+								} else if (authRedirectReason === "cancelled") {
+									$scope.authMode = "login";
+									$scope.formError = "";
+									$scope.resetNotice = "GitHub sign-in was canceled. You can try again or sign in with email and password.";
+								} else if (authRedirectReason === "provider-rejected") {
+									$scope.authMode = "login";
+									$scope.formError = "GitHub or Supabase rejected authorization. In Supabase, verify the GitHub Client ID and Secret. In the GitHub OAuth app, set its callback URL to the Supabase project's https://<project-ref>.supabase.co/auth/v1/callback.";
+								} else if (authRedirectReason === "missing-verifier") {
+									$scope.authMode = "login";
+									$scope.formError = "The sign-in verification cookie was missing. Allow cookies for Fieldnote and retry in the same browser.";
+								} else if (authRedirectReason === "session-exchange") {
+									$scope.authMode = "login";
+									$scope.formError = "GitHub returned successfully, but Supabase could not exchange the sign-in code. Check the Supabase Auth logs and verify the GitHub OAuth Client ID, Secret, and callback URL.";
+								} else if (authRedirectReason === "missing-code") {
+									$scope.authMode = "login";
+									$scope.formError = "GitHub returned without a sign-in code. Check that https://fieldnote-eta-six.vercel.app/api/auth/github/callback is allowed in Supabase Auth redirect URLs, then retry.";
+								} else if (authRedirectResult === "github-success") {
+									$scope.authMode = "login";
+									$scope.formError = "GitHub authorization completed, but Fieldnote could not load the account session. Retry in the same browser; if it continues, check Supabase Auth logs.";
 								} else {
 									$scope.authMode = "login";
-									$scope.formError = "GitHub sign-in failed. Check that the GitHub provider is enabled in Supabase, or use email and password.";
+									$scope.formError = "GitHub sign-in could not be completed. Retry, or use email and password.";
 								}
 							});
 						}
