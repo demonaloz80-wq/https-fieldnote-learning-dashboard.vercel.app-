@@ -1040,7 +1040,7 @@ if (typeof angular !== 'undefined') {
 				var authRedirectResult = new URLSearchParams($window.location.search).get("auth");
 				var authRedirectReason = new URLSearchParams($window.location.search).get("reason");
 				if (["github-success", "github-error", "signup-confirmed", "password-recovery"].indexOf(authRedirectResult) === -1) authRedirectResult = "";
-				if (["cancelled", "provider-rejected", "missing-code", "missing-verifier", "session-exchange"].indexOf(authRedirectReason) === -1) authRedirectReason = "";
+				if (["cancelled", "provider-rejected", "missing-code", "missing-verifier", "session-exchange", "account-setup"].indexOf(authRedirectReason) === -1) authRedirectReason = "";
 				if (authRedirectResult) $window.history.replaceState({}, "", $window.location.pathname + $window.location.hash);
 				authRequest("/api/auth/me").then(function (result) {
 					loadAuthenticatedUser(result.user);
@@ -1076,9 +1076,14 @@ if (typeof angular !== 'undefined') {
 								} else if (authRedirectReason === "missing-code") {
 									$scope.authMode = "login";
 									$scope.formError = "GitHub returned without a sign-in code. Check that https://fieldnote-eta-six.vercel.app/api/auth/github/callback is allowed in Supabase Auth redirect URLs, then retry.";
+								} else if (authRedirectReason === "account-setup") {
+									$scope.authMode = "login";
+									$scope.formError = "GitHub authorized you, but Fieldnote could not prepare your learner profile in Supabase. Check that the Fieldnote schema migration is applied and the Vercel Supabase service-role key can insert into profiles.";
 								} else if (authRedirectResult === "github-success") {
 									$scope.authMode = "login";
-									$scope.formError = "GitHub authorization completed, but Fieldnote could not load the account session. Retry in the same browser; if it continues, check Supabase Auth logs.";
+									$scope.formError = error.status === 401
+										? "GitHub authorized you, but Fieldnote did not receive a valid session cookie. Allow cookies for fieldnote-eta-six.vercel.app, then sign in again."
+										: "GitHub authorized you, but Fieldnote could not load your profile. " + (error.message || "Check Supabase Auth and database logs.");
 								} else {
 									$scope.authMode = "login";
 									$scope.formError = "GitHub sign-in could not be completed. Retry, or use email and password.";

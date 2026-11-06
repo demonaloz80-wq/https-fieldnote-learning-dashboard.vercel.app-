@@ -167,14 +167,34 @@ test('GitHub OAuth callback exchanges the code and stores the session in HttpOnl
   withSupabaseConfig(t);
   const verifier = 'test-pkce-verifier';
   let exchangeBody;
+  const requestedUrls = [];
   global.fetch = async (url, options) => {
-    assert.equal(String(url), 'https://project.supabase.co/auth/v1/token?grant_type=pkce');
-    exchangeBody = JSON.parse(options.body);
-    return new Response(JSON.stringify({
-      access_token: 'test-access-token',
-      refresh_token: 'test-refresh-token',
-      expires_in: 3600
-    }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    const requestUrl = String(url);
+    requestedUrls.push(requestUrl);
+    if (requestUrl === 'https://project.supabase.co/auth/v1/token?grant_type=pkce') {
+      exchangeBody = JSON.parse(options.body);
+      return new Response(JSON.stringify({
+        access_token: 'test-access-token',
+        refresh_token: 'test-refresh-token',
+        expires_in: 3600
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl === 'https://project.supabase.co/auth/v1/user') {
+      return new Response(JSON.stringify({
+        id: 'github-learner-id',
+        email: 'learner@example.test',
+        user_metadata: { name: 'GitHub Learner' }
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl.startsWith('https://project.supabase.co/rest/v1/profiles?')) {
+      return new Response(JSON.stringify([{
+        id: 'github-learner-id',
+        full_name: 'GitHub Learner',
+        role: 'student',
+        profile: {}
+      }]), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    throw new Error('Unexpected request in GitHub OAuth callback test.');
   };
   const response = createResponse();
   await fieldnoteApiHandler(createRequest('/api/auth/github/callback?code=one-time-code', 'GET', {}, {
@@ -182,6 +202,8 @@ test('GitHub OAuth callback exchanges the code and stores the session in HttpOnl
   }), response);
 
   assert.deepEqual(exchangeBody, { auth_code: 'one-time-code', code_verifier: verifier });
+  assert.ok(requestedUrls.includes('https://project.supabase.co/auth/v1/user'));
+  assert.ok(requestedUrls.some((requestedUrl) => requestedUrl.startsWith('https://project.supabase.co/rest/v1/profiles?')));
   assert.equal(response.statusCode, 303);
   assert.equal(response.headers.Location, 'https://fieldnote-preview.vercel.app/?auth=github-success');
   assert.ok(Array.isArray(response.headers['Set-Cookie']));
@@ -242,6 +264,43 @@ test('authenticated GitHub user receives a least-privilege student profile if th
   assert.equal(insertPreference, 'resolution=ignore-duplicates,return=representation');
   assert.equal(JSON.parse(response.body).user.role, 'student');
   assert.equal(JSON.parse(response.body).user.name, 'GitHub Learner');
+});
+
+test('GitHub OAuth callback does not report success when learner profile setup fails', async (t) => {
+  withSupabaseConfig(t);
+  global.fetch = async (url) => {
+    const requestUrl = String(url);
+    if (requestUrl.endsWith('/auth/v1/token?grant_type=pkce')) {
+      return new Response(JSON.stringify({
+        access_token: 'test-access-token',
+        refresh_token: 'test-refresh-token',
+        expires_in: 3600
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    if (requestUrl.endsWith('/auth/v1/user')) {
+      return new Response(JSON.stringify({
+        id: 'github-learner-id',
+        email: 'learner@example.test',
+        user_metadata: { name: 'GitHub Learner' }
+      }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+    }
+    return new Response(JSON.stringify({ message: 'database unavailable' }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  };
+
+  const response = createResponse();
+  await fieldnoteApiHandler(createRequest('/api/auth/github/callback?code=one-time-code', 'GET', {}, {
+    cookie: 'fieldnote_github_oauth=test-verifier'
+  }), response);
+
+  assert.equal(response.statusCode, 303);
+  assert.equal(response.headers.Location,
+    'https://fieldnote-preview.vercel.app/?auth=github-error&reason=account-setup');
+  assert.ok(![].concat(response.headers['Set-Cookie']).some((cookie) =>
+    cookie.startsWith('fieldnote_supabase_session=')
+  ));
 });
 
 test('GitHub OAuth callback reports provider rejection without forwarding its description', async (t) => {
