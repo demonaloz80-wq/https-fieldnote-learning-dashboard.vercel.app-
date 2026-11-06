@@ -122,29 +122,55 @@ test("supports credentialed requests from a locally opened file", async () => {
 	assert.match(registration.headers.get("set-cookie"), /Secure/i);
 });
 
-test("returns a clear configuration error when Gemini is not configured", async () => {
+test("returns a clear configuration error when Copilot is not configured", async () => {
 	const response = await fetch(baseUrl + "/api/coach", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
 		body: JSON.stringify({ question: "Explain semantic HTML." })
 	});
 	assert.equal(response.status, 503);
-	assert.match((await response.json()).error, /GEMINI_API_KEY/);
+	assert.match((await response.json()).error, /COPILOT_GITHUB_TOKEN/);
 });
 
-test("sends learning context to Gemini server-side and returns its answer", async () => {
-	let requestedUrl;
-	let requestedBody;
-	const coachApp = await createApp({
-		config: { ...config, geminiApiKey: "test-gemini-key", geminiModel: "gemini-test" },
-		databasePath: ":memory:",
-		geminiFetch: async (url, options) => {
-			requestedUrl = new URL(url);
-			requestedBody = JSON.parse(options.body);
-			return new Response(JSON.stringify({
-				candidates: [{ content: { parts: [{ text: "Semantic HTML describes meaning." }] } }]
-			}), { status: 200, headers: { "Content-Type": "application/json" } });
+test("sends learning context through the authenticated Copilot SDK", async () => {
+	const calls = {};
+	class MockCopilotClient {
+		constructor(options) {
+			calls.clientOptions = options;
 		}
+
+		async start() {
+			calls.started = true;
+		}
+
+		async createSession(options) {
+			calls.sessionOptions = options;
+			return {
+				async sendAndWait(options) {
+					calls.prompt = options.prompt;
+					return { data: { content: "Semantic HTML describes meaning." } };
+				},
+				async disconnect() {
+					calls.disconnected = true;
+				}
+			};
+		}
+
+		async stop() {
+			calls.stopped = true;
+		}
+	}
+	const copilotSdk = {
+		CopilotClient: MockCopilotClient,
+	};
+	const coachApp = await createApp({
+		config: {
+			...config,
+			copilotGithubToken: "test-copilot-token",
+			copilotModel: "auto"
+		},
+		databasePath: ":memory:",
+		copilotSdk: copilotSdk
 	});
 	await new Promise(resolveListen => coachApp.server.listen(0, "127.0.0.1", resolveListen));
 	try {
@@ -156,10 +182,14 @@ test("sends learning context to Gemini server-side and returns its answer", asyn
 		});
 		assert.equal(response.status, 200);
 		assert.deepEqual(await response.json(), { answer: "Semantic HTML describes meaning." });
-		assert.equal(requestedUrl.pathname, "/v1beta/models/gemini-test:generateContent");
-		assert.equal(requestedUrl.searchParams.get("key"), "test-gemini-key");
-		assert.match(requestedBody.contents[0].parts[0].text, /HTML foundations/);
-		assert.match(requestedBody.contents[0].parts[0].text, /What is semantic HTML\?/);
+		assert.equal(calls.clientOptions.gitHubToken, "test-copilot-token");
+		assert.equal(calls.clientOptions.useLoggedInUser, false);
+		assert.equal(calls.clientOptions.mode, "empty");
+		assert.equal(calls.sessionOptions.model, "auto");
+		assert.match(calls.prompt, /HTML foundations/);
+		assert.match(calls.prompt, /What is semantic HTML\?/);
+		assert.equal(calls.disconnected, true);
+		assert.equal(calls.stopped, true);
 	} finally {
 		await coachApp.close();
 	}

@@ -24,7 +24,7 @@
 						</section>
 						<section class="panel lesson-test" aria-labelledby="lessonTestHeading">
 							<h2 id="lessonTestHeading">Lesson test</h2>
-							<p class="subheading">Randomized practice questions from this lesson. This is not a secure or proctored exam.</p>
+							<p class="subheading">{{ lessonTestDescription() }}</p>
 							<button class="button-outline" type="button" ng-if="!lessonTest" ng-click="startLessonTest()">Start test</button>
 							<div ng-if="lessonTest && !lessonTest.submitted">
 								<div class="test-question" ng-repeat="question in lessonTest.questions track by $index">

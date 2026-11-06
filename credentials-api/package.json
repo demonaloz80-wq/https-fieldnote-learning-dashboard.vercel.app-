@@ -11,9 +11,13 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@github/copilot-sdk": "1.0.28",
     "angular": "^1.8.3",
     "jose": "^6.2.12",
     "nodemailer": "^10.1.1",
     "qrcode": "^1.5.4"
+  },
+  "overrides": {
+    "zod": "4.6.7"
   }
 }

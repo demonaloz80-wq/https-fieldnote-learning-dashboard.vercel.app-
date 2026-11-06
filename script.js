@@ -67,6 +67,15 @@ function evaluateCodeLab(source) {
   return { performance, security, status, summary: `${status}. Static checks only; pasted code is not executed.`, checks };
 }
 
+function buildDesignPreviewDocument(html, css, javascript) {
+	const safeCss = String(css || "").replace(/<\/style/gi, "<\\/style");
+	const safeJavascript = String(javascript || "").replace(/<\/script/gi, "<\\/script");
+	return "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\"><meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+		"<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'; object-src 'none'\"><style>" +
+		"body{margin:0;padding:24px;font:16px/1.5 system-ui,sans-serif}" + safeCss +
+		"</style></head><body>" + String(html || "") + "<script>" + safeJavascript + "</script></body></html>";
+}
+
 function isValidMatricScore(value) {
 	if (value === '' || value === null || value === undefined) return true;
 	const score = Number(value);
@@ -76,6 +85,84 @@ function isValidMatricScore(value) {
 
 function hasCompletedCourse(enrollment, lessonCount) {
 	return !!enrollment && lessonCount > 0 && Number(enrollment.completed) >= lessonCount;
+}
+
+function instructorAssessmentQuestions(lesson) {
+	if (!lesson || !Array.isArray(lesson.assessmentQuestions)) return [];
+	return lesson.assessmentQuestions.map(function (question) {
+		return { prompt: question.prompt, options: question.options.slice(), answer: question.options[question.answerIndex] };
+	});
+}
+
+function buildLessonAssessmentQuestions(lesson, lessonBank) {
+	var targets = [{ answer: lesson.objective, type: "outcome" }]
+		.concat((lesson.keyPoints || []).map(function (answer) { return { answer: answer, type: "principle" }; }))
+		.concat([{ answer: lesson.practice, type: "application" }, { answer: lesson.title, type: "topic" }]);
+	var answers = targets.map(function (target) {
+		target.answer = String(target.answer || "").trim();
+		return target;
+	}).filter(function (target, index, list) {
+		return target.answer && list.findIndex(function (item) { return item.answer === target.answer; }) === index;
+	})
+		.slice(0, 4);
+	var distractors = [];
+	(lessonBank || []).forEach(function (item) {
+		if (!item || item.id === lesson.id) return;
+		[item.objective].concat(item.keyPoints || [], [item.practice]).forEach(function (fact) {
+			fact = String(fact || "").trim();
+			if (fact && !answers.some(function (target) { return target.answer === fact; }) && distractors.indexOf(fact) === -1) distractors.push(fact);
+		});
+	});
+	var fallbackDistractors = [
+		"Use a tool because it is familiar, without checking whether it serves the learning objective.",
+		"Skip practice and judge success only by how polished the final result looks.",
+		"Apply one fixed solution even when evidence shows the learner's needs differ."
+	];
+	return answers.map(function (target, index) {
+		var options = [target.answer];
+		var offset = index * 3;
+		for (var distractorIndex = 0; distractorIndex < distractors.length && options.length < 4; distractorIndex += 1) {
+			var distractor = distractors[(offset + distractorIndex) % distractors.length];
+			if (options.indexOf(distractor) === -1) options.push(distractor);
+		}
+		while (options.length < 4) {
+			options.push(fallbackDistractors[(index + options.length - 1) % fallbackDistractors.length] + " (Option " + (options.length + 1) + ")");
+		}
+		var prompt = target.type === "outcome"
+			? "Which outcome best demonstrates success in " + lesson.title + "?"
+			: target.type === "application"
+				? "Which practice task directly applies the learning in " + lesson.title + "?"
+				: target.type === "topic"
+					? "Which topic does " + lesson.title + " address?"
+					: "Which principle best supports the learning objective for " + lesson.title + "?";
+		return {
+			prompt: prompt,
+			options: options,
+			answerIndex: 0
+		};
+	});
+}
+
+function hasPassedCourseAssessments(quizResults, course) {
+	if (!course || !Array.isArray(course.curriculum) || !course.curriculum.length) return false;
+	return course.curriculum.every(function (lesson) {
+		var result = quizResults && quizResults[course.id + ":" + lesson.id];
+		return !!(result && result.passed === true);
+	});
+}
+
+function instructorKeyPoints(value) {
+	return String(value || "").split(/\r?\n/).map(function (point) { return point.trim(); }).filter(Boolean);
+}
+
+function validateInstructorLessonStandards(module) {
+	var keyPoints = instructorKeyPoints(module && module.keyPointsText);
+	if (keyPoints.length < 3 || keyPoints.length > 8 || keyPoints.some(function (point) { return point.length > 300; })) {
+		return "Add 3 to 8 concise key ideas, one per line (up to 300 characters each).";
+	}
+	var practice = String(module && module.practice || "").trim();
+	if (!practice || practice.length > 2000) return "Add an applied practice task of up to 2,000 characters.";
+	return "";
 }
 
 function normalizeYouTubeEmbedUrl(value) {
@@ -118,6 +205,57 @@ function validateImageUpload(file, maxBytes = 5 * 1024 * 1024) {
 	return "";
 }
 
+function buildPdfWithJpegImage(jpegBytes, imageWidth, imageHeight) {
+	if (!(jpegBytes instanceof Uint8Array) || !jpegBytes.length || !Number.isInteger(imageWidth) || imageWidth < 1 || !Number.isInteger(imageHeight) || imageHeight < 1) {
+		throw new Error("A valid JPEG image is required to create the certificate PDF.");
+	}
+	var encoder = new TextEncoder();
+	var content = encoder.encode("q\n842 0 0 595 0 0 cm\n/Im0 Do\nQ\n");
+	var objects = [
+		{ text: "<< /Type /Catalog /Pages 2 0 R >>" },
+		{ text: "<< /Type /Pages /Kids [3 0 R] /Count 1 >>" },
+		{ text: "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 842 595] /Resources << /XObject << /Im0 5 0 R >> >> /Contents 4 0 R >>" },
+		{ text: "<< /Length " + content.length + " >>\nstream\n", bytes: content, suffix: "\nendstream" },
+		{
+			text: "<< /Type /XObject /Subtype /Image /Width " + imageWidth + " /Height " + imageHeight + " /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length " + jpegBytes.length + " >>\nstream\n",
+			bytes: jpegBytes,
+			suffix: "\nendstream"
+		}
+	];
+	var chunks = [encoder.encode("%PDF-1.4\n")];
+	var byteLength = chunks[0].length;
+	var offsets = [0];
+	objects.forEach(function (object, index) {
+		offsets.push(byteLength);
+		var prefix = encoder.encode((index + 1) + " 0 obj\n" + object.text + (object.bytes ? "" : "\nendobj\n"));
+		chunks.push(prefix);
+		byteLength += prefix.length;
+		if (object.bytes) {
+			chunks.push(object.bytes);
+			byteLength += object.bytes.length;
+			var suffix = encoder.encode(object.suffix + "\nendobj\n");
+			chunks.push(suffix);
+			byteLength += suffix.length;
+		}
+	});
+	var crossReferenceOffset = byteLength;
+	var crossReference = "xref\n0 " + (objects.length + 1) + "\n0000000000 65535 f \n";
+	offsets.slice(1).forEach(function (offset) {
+		crossReference += String(offset).padStart(10, "0") + " 00000 n \n";
+	});
+	crossReference += "trailer\n<< /Size " + (objects.length + 1) + " /Root 1 0 R >>\nstartxref\n" + crossReferenceOffset + "\n%%EOF\n";
+	var footer = encoder.encode(crossReference);
+	chunks.push(footer);
+	byteLength += footer.length;
+	var pdf = new Uint8Array(byteLength);
+	var position = 0;
+	chunks.forEach(function (chunk) {
+		pdf.set(chunk, position);
+		position += chunk.length;
+	});
+	return pdf;
+}
+
 function buildCourseCertificateMarkup(details) {
 	const studentName = escapeCertificateText(details.studentName);
 	const courseTitle = escapeCertificateText(details.courseTitle);
@@ -129,7 +267,7 @@ function buildCourseCertificateMarkup(details) {
 }
 
 if (typeof module !== 'undefined' && module.exports) {
-	module.exports = { buildAngularJsExample, evaluateCodeLab, isValidMatricScore, hasCompletedCourse, normalizeYouTubeEmbedUrl, isValidInstructorProfile, escapeCertificateText, buildCourseCertificateMarkup, validateImageUpload };
+	module.exports = { buildAngularJsExample, evaluateCodeLab, buildDesignPreviewDocument, isValidMatricScore, hasCompletedCourse, instructorAssessmentQuestions, buildLessonAssessmentQuestions, hasPassedCourseAssessments, instructorKeyPoints, validateInstructorLessonStandards, normalizeYouTubeEmbedUrl, isValidInstructorProfile, escapeCertificateText, buildCourseCertificateMarkup, buildPdfWithJpegImage, validateImageUpload };
 }
 
 
@@ -197,6 +335,69 @@ if (typeof angular !== 'undefined') {
 						};
 						element.on("change", onChange);
 						scope.$on("$destroy", function () { element.off("change", onChange); });
+					}
+				};
+			});
+			app.directive("designCanvas", function ($window) {
+				return {
+					restrict: "A",
+					link: function (scope, element, attributes) {
+						var canvas = element[0];
+						var context = canvas.getContext("2d");
+						var drawing = false;
+						var lastPoint = null;
+
+						function pointFromEvent(event) {
+							var bounds = canvas.getBoundingClientRect();
+							return {
+								x: (event.clientX - bounds.left) * canvas.width / bounds.width,
+								y: (event.clientY - bounds.top) * canvas.height / bounds.height
+							};
+						}
+
+						function beginStroke(event) {
+							if (event.button !== undefined && event.button !== 0) return;
+							drawing = true;
+							lastPoint = pointFromEvent(event);
+							context.beginPath();
+							context.moveTo(lastPoint.x, lastPoint.y);
+							context.lineCap = "round";
+							context.lineJoin = "round";
+							context.lineWidth = Math.max(1, Number(scope.$eval(attributes.designCanvasSize)) || 4) * canvas.width / canvas.getBoundingClientRect().width;
+							context.strokeStyle = scope.$eval(attributes.designCanvasColor) || "#172a25";
+							context.globalCompositeOperation = scope.$eval(attributes.designCanvasEraser) ? "destination-out" : "source-over";
+							canvas.setPointerCapture(event.pointerId);
+							event.preventDefault();
+						}
+
+						function continueStroke(event) {
+							if (!drawing) return;
+							var point = pointFromEvent(event);
+							context.beginPath();
+							context.moveTo(lastPoint.x, lastPoint.y);
+							context.lineTo(point.x, point.y);
+							context.stroke();
+							lastPoint = point;
+							event.preventDefault();
+						}
+
+						function endStroke() {
+							if (!drawing) return;
+							drawing = false;
+							lastPoint = null;
+							context.globalCompositeOperation = "source-over";
+						}
+
+						canvas.addEventListener("pointerdown", beginStroke);
+						canvas.addEventListener("pointermove", continueStroke);
+						canvas.addEventListener("pointerup", endStroke);
+						canvas.addEventListener("pointercancel", endStroke);
+						scope.$on("$destroy", function () {
+							canvas.removeEventListener("pointerdown", beginStroke);
+							canvas.removeEventListener("pointermove", continueStroke);
+							canvas.removeEventListener("pointerup", endStroke);
+							canvas.removeEventListener("pointercancel", endStroke);
+						});
 					}
 				};
 			});
@@ -499,6 +700,15 @@ if (typeof angular !== 'undefined') {
 						if (!lesson.videoUrl && lessonVideos[lesson.id]) lesson.videoUrl = lessonVideos[lesson.id];
 					});
 				});
+				var builtInLessonBank = [];
+				seed.courses.forEach(function (course) {
+					(course.curriculum || []).forEach(function (lesson) { builtInLessonBank.push(lesson); });
+				});
+				builtInLessonBank.forEach(function (lesson) {
+					if (!lesson.assessmentQuestions || !lesson.assessmentQuestions.length) {
+						lesson.assessmentQuestions = buildLessonAssessmentQuestions(lesson, builtInLessonBank);
+					}
+				});
 				var legacySavedState = null;
 				try { legacySavedState = JSON.parse($window.localStorage.getItem(legacyStorageKey) || "null"); } catch (error) { legacySavedState = null; }
 
@@ -512,7 +722,7 @@ if (typeof angular !== 'undefined') {
 					return { prompt: "", options: ["", "", "", ""], answerIndex: 0 };
 				}
 				function createInstructorModuleDraft() {
-					return { title: "", objective: "", content: "", videoUrl: "", assessmentQuestions: [createAssessmentQuestionDraft()] };
+					return { title: "", objective: "", content: "", keyPointsText: "", practice: "", videoUrl: "", assessmentQuestions: [createAssessmentQuestionDraft(), createAssessmentQuestionDraft(), createAssessmentQuestionDraft()] };
 				}
 				$scope.newInstructorModule = createInstructorModuleDraft();
 				$scope.registeredInstructors = [];
@@ -570,6 +780,62 @@ if (typeof angular !== 'undefined') {
 				$scope.commandQuery = "";
 				$scope.lessonDiscussions = {};
 				$scope.copilotQuestion = "";
+				var designStudioStorageKey = "fieldnote-design-studio-v1";
+				var designPhotoUrl = "";
+				var designVideoUrl = "";
+				var designVideoTimer = null;
+				$scope.designStudio = {
+					tab: "code",
+					editorTab: "html",
+					html: "<main class=\"welcome\"><span class=\"eyebrow\">A small idea</span><h1>Make it meaningful.</h1><p>Design starts with understanding who you are creating for.</p><button type=\"button\" class=\"cta\">Explore the idea</button></main>",
+					css: ".welcome{max-width:560px;margin:8vh auto;padding:clamp(24px,6vw,64px);border:1px solid #dfe8df;border-radius:20px;background:#fff;box-shadow:0 20px 55px rgba(23,42,37,.09)}.eyebrow{color:#1d6b52;text-transform:uppercase;letter-spacing:.14em;font-size:12px;font-weight:700}h1{font-size:clamp(36px,7vw,64px);line-height:1.04;letter-spacing:-.05em;margin:16px 0}.welcome p{max-width:390px;color:#64736a;line-height:1.7}.cta{margin-top:12px;border:0;border-radius:999px;padding:13px 20px;background:#1d6b52;color:white;font-weight:700}",
+					javascript: "document.querySelector('.cta').addEventListener('click', function () {\n  this.textContent = 'Thanks for exploring';\n});",
+					brandName: "Fieldnote Studio",
+					tagline: "Thoughtful ideas, made real.",
+					primaryColor: "#1d6b52",
+					accentColor: "#d9f276",
+					photoUrl: "",
+					photoName: "",
+					photoBrightness: 100,
+					photoContrast: 100,
+					photoSaturation: 100,
+					magazineTitle: "The art of starting small",
+					magazineSubtitle: "How a single thoughtful idea can change the way we work.",
+					magazineStory: "A new generation of makers is finding room to grow by paying attention to the details that matter most.",
+					magazineIssue: "VOL. 01 · FIELD NOTES",
+					videoUrl: "",
+					videoName: "",
+					videoReady: false,
+					videoTitle: "A story in motion",
+					videoStart: 0,
+					videoEnd: 10,
+					brushColor: "#1d6b52",
+					brushSize: 5,
+					eraser: false,
+					status: "Drafts stay in this browser unless you export them."
+				};
+				try {
+					var savedDesign = JSON.parse($window.localStorage.getItem(designStudioStorageKey) || "null");
+					if (savedDesign && savedDesign.version === 1) {
+						["html", "css", "javascript", "brandName", "tagline", "magazineTitle", "magazineSubtitle", "magazineStory", "magazineIssue", "videoTitle"].forEach(function (key) {
+							if (typeof savedDesign[key] === "string" && savedDesign[key].length <= 250000) $scope.designStudio[key] = savedDesign[key];
+						});
+						["primaryColor", "accentColor"].forEach(function (key) {
+							if (typeof savedDesign[key] === "string" && /^#[0-9a-f]{6}$/i.test(savedDesign[key])) $scope.designStudio[key] = savedDesign[key];
+						});
+						["photoBrightness", "photoContrast", "photoSaturation"].forEach(function (key) {
+							if (Number.isFinite(Number(savedDesign[key]))) $scope.designStudio[key] = Math.max(0, Math.min(200, Number(savedDesign[key])));
+						});
+						if (Number.isFinite(Number(savedDesign.videoStart)) && Number(savedDesign.videoStart) >= 0) $scope.designStudio.videoStart = Number(savedDesign.videoStart);
+						if (Number.isFinite(Number(savedDesign.videoEnd)) && Number(savedDesign.videoEnd) > 0) $scope.designStudio.videoEnd = Number(savedDesign.videoEnd);
+						if (typeof savedDesign.drawing === "string" && /^data:image\/png;base64,/i.test(savedDesign.drawing)) {
+							$scope.designStudio.savedDrawing = savedDesign.drawing;
+						}
+						$scope.designStudio.status = "Your saved draft was loaded from this browser.";
+					}
+				} catch (error) {
+					$scope.designStudio.status = "A saved draft could not be loaded. You can start a fresh design.";
+				}
 				$scope.copilotResponse = "";
 				$scope.copilotSummary = "";
 				$scope.copilotQuestions = [];
@@ -772,13 +1038,13 @@ if (typeof angular !== 'undefined') {
 				loadPublishedCourses();
 				loadRegisteredInstructors();
 				var authRedirectResult = new URLSearchParams($window.location.search).get("auth");
-				if (["google-success", "google-error", "signup-confirmed", "password-recovery"].indexOf(authRedirectResult) === -1) authRedirectResult = "";
+				if (["github-success", "github-error", "signup-confirmed", "password-recovery"].indexOf(authRedirectResult) === -1) authRedirectResult = "";
 				if (authRedirectResult) $window.history.replaceState({}, "", $window.location.pathname + $window.location.hash);
 				authRequest("/api/auth/me").then(function (result) {
 					loadAuthenticatedUser(result.user);
-					if (authRedirectResult === "google-success") {
+					if (authRedirectResult === "github-success") {
 						$scope.$applyAsync(function () { setPage("account"); });
-						showToast("Signed in with Google.");
+						showToast("Signed in with GitHub.");
 					}
 					}).catch(function (error) {
 						if (authRedirectResult) {
@@ -794,7 +1060,7 @@ if (typeof angular !== 'undefined') {
 									$scope.resetNotice = "Enter your email address to request a password-reset code.";
 								} else {
 									$scope.authMode = "login";
-									$scope.formError = "Google sign-in could not be completed. Try again or use email and password.";
+									$scope.formError = "GitHub sign-in failed. Check that the GitHub provider is enabled in Supabase, or use email and password.";
 								}
 							});
 						}
@@ -902,6 +1168,7 @@ if (typeof angular !== 'undefined') {
 				}
 
 				$scope.setView = function (view) {
+					if (view !== "designStudio") $scope.pauseDesignVideo();
 					if (view === "learning" && (!$scope.authUser || $scope.authUser.role !== "student")) {
 						$scope.authMode = "login";
 						view = "account";
@@ -922,11 +1189,339 @@ if (typeof angular !== 'undefined') {
 						$scope.studentForm.confirmEducationBackground = false;
 					}
 					if (view === "instructorStudio") $scope.loadInstructorCourses();
+					if (view === "designStudio") $timeout(function () {
+						$scope.designStudio.sketchRestored = false;
+						$scope.runDesignPreview();
+						$scope.restoreDesignSketch();
+					});
+				};
+
+				$scope.selectDesignTab = function (tab) {
+					if (tab !== "video") $scope.pauseDesignVideo();
+					$scope.designStudio.tab = tab;
+					if (tab === "code") $scope.runDesignPreview();
+				};
+
+				$scope.runDesignPreview = function () {
+					var frame = $window.document.getElementById("designPreviewFrame");
+					if (!frame) return;
+					frame.srcdoc = buildDesignPreviewDocument($scope.designStudio.html, $scope.designStudio.css, $scope.designStudio.javascript);
+					$scope.designStudio.status = "Preview refreshed in an isolated frame. Network access is blocked.";
+				};
+
+				$scope.saveDesignDraft = function () {
+					var canvas = $window.document.getElementById("brandSketchCanvas");
+					var saved = {
+						version: 1,
+						html: $scope.designStudio.html,
+						css: $scope.designStudio.css,
+						javascript: $scope.designStudio.javascript,
+						brandName: $scope.designStudio.brandName,
+						tagline: $scope.designStudio.tagline,
+						primaryColor: $scope.designStudio.primaryColor,
+						accentColor: $scope.designStudio.accentColor,
+						magazineTitle: $scope.designStudio.magazineTitle,
+						magazineSubtitle: $scope.designStudio.magazineSubtitle,
+						magazineStory: $scope.designStudio.magazineStory,
+						magazineIssue: $scope.designStudio.magazineIssue,
+						videoTitle: $scope.designStudio.videoTitle,
+						videoStart: $scope.designStudio.videoStart,
+						videoEnd: $scope.designStudio.videoEnd,
+						photoBrightness: $scope.designStudio.photoBrightness,
+						photoContrast: $scope.designStudio.photoContrast,
+						photoSaturation: $scope.designStudio.photoSaturation,
+						drawing: canvas ? canvas.toDataURL("image/png") : $scope.designStudio.savedDrawing || ""
+					};
+					try {
+						$window.localStorage.setItem(designStudioStorageKey, JSON.stringify(saved));
+						$scope.designStudio.savedDrawing = saved.drawing;
+						$scope.designStudio.status = "Draft saved on this device only.";
+					} catch (error) {
+						$scope.designStudio.status = "Could not save this draft in browser storage. Export your work to keep a copy.";
+					}
+				};
+
+				$scope.clearDesignDraft = function () {
+					try {
+						$window.localStorage.removeItem(designStudioStorageKey);
+						$scope.designStudio.savedDrawing = "";
+						$scope.designStudio.status = "Saved draft removed from this browser.";
+					} catch (error) {
+						$scope.designStudio.status = "Could not remove the saved draft from browser storage.";
+					}
+				};
+
+				$scope.clearDesignSketch = function () {
+					var canvas = $window.document.getElementById("brandSketchCanvas");
+					if (!canvas) return;
+					canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+					$scope.designStudio.status = "Sketch cleared.";
+				};
+
+				$scope.restoreDesignSketch = function () {
+					var canvas = $window.document.getElementById("brandSketchCanvas");
+					var imageData = $scope.designStudio.savedDrawing;
+					if (!canvas || !imageData || $scope.designStudio.sketchRestored) return;
+					var image = new $window.Image();
+					image.onload = function () {
+						var context = canvas.getContext("2d");
+						context.clearRect(0, 0, canvas.width, canvas.height);
+						context.drawImage(image, 0, 0, canvas.width, canvas.height);
+						$scope.designStudio.sketchRestored = true;
+						$scope.$applyAsync();
+					};
+					image.onerror = function () {
+						$scope.$applyAsync(function () { $scope.designStudio.status = "The saved sketch could not be restored."; });
+					};
+					image.src = imageData;
+				};
+
+				$scope.downloadDesignPreview = function () {
+					var content = buildDesignPreviewDocument($scope.designStudio.html, $scope.designStudio.css, $scope.designStudio.javascript);
+					var name = ($scope.designStudio.brandName || "fieldnote-design").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "fieldnote-design";
+					var blob = new $window.Blob([content], { type: "text/html;charset=utf-8" });
+					var downloadUrl = $window.URL.createObjectURL(blob);
+					var link = $window.document.createElement("a");
+					link.href = downloadUrl;
+					link.download = name + "-prototype.html";
+					link.click();
+					$timeout(function () { $window.URL.revokeObjectURL(downloadUrl); }, 1000);
+					$scope.designStudio.status = "Prototype exported as a standalone HTML file.";
+				};
+
+				$scope.downloadBrandMark = function () {
+					var name = escapeCertificateText($scope.designStudio.brandName || "Fieldnote");
+					var tagline = escapeCertificateText($scope.designStudio.tagline || "");
+					var initials = escapeCertificateText(($scope.designStudio.brandName || "F").split(/\s+/).slice(0, 2).map(function (part) { return part.charAt(0); }).join("").toUpperCase());
+					var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="960" height="360" viewBox="0 0 960 360"><rect width="360" height="360" rx="72" fill="' + $scope.designStudio.primaryColor + '"/><path d="M180 64 276 160 180 256 84 160Z" fill="' + $scope.designStudio.accentColor + '"/><text x="400" y="158" font-family="Arial,sans-serif" font-size="58" font-weight="700" fill="' + $scope.designStudio.primaryColor + '">' + name + '</text><text x="402" y="214" font-family="Arial,sans-serif" font-size="26" fill="#64736a">' + tagline + '</text><text x="180" y="181" text-anchor="middle" font-family="Arial,sans-serif" font-size="48" font-weight="700" fill="' + $scope.designStudio.primaryColor + '">' + initials + '</text></svg>';
+					var blob = new $window.Blob([svg], { type: "image/svg+xml;charset=utf-8" });
+					var downloadUrl = $window.URL.createObjectURL(blob);
+					var link = $window.document.createElement("a");
+					link.href = downloadUrl;
+					link.download = "fieldnote-brand-mark.svg";
+					link.click();
+					$timeout(function () { $window.URL.revokeObjectURL(downloadUrl); }, 1000);
+					$scope.designStudio.status = "Editable SVG brand mark exported. Use assets you own or have permission to use.";
+				};
+
+				$scope.downloadDesignSketch = function () {
+					var canvas = $window.document.getElementById("brandSketchCanvas");
+					if (!canvas) return;
+					var link = $window.document.createElement("a");
+					link.href = canvas.toDataURL("image/png");
+					link.download = "fieldnote-brand-sketch.png";
+					link.click();
+					$scope.designStudio.status = "Sketch exported as a PNG image.";
+				};
+
+				function downloadDesignBlob(blob, fileName) {
+					var downloadUrl = $window.URL.createObjectURL(blob);
+					var link = $window.document.createElement("a");
+					link.href = downloadUrl;
+					link.download = fileName;
+					link.click();
+					$timeout(function () { $window.URL.revokeObjectURL(downloadUrl); }, 1000);
+				}
+
+				function getEditedPhotoCanvas() {
+					var image = $window.document.getElementById("designPhotoPreview");
+					if (!image || !image.complete || !image.naturalWidth) throw new Error("Choose a photo and wait for its preview to load.");
+					var scale = Math.min(1, 2400 / Math.max(image.naturalWidth, image.naturalHeight));
+					var canvas = $window.document.createElement("canvas");
+					canvas.width = Math.max(1, Math.round(image.naturalWidth * scale));
+					canvas.height = Math.max(1, Math.round(image.naturalHeight * scale));
+					var context = canvas.getContext("2d");
+					context.filter = "brightness(" + Number($scope.designStudio.photoBrightness) + "%) contrast(" + Number($scope.designStudio.photoContrast) + "%) saturate(" + Number($scope.designStudio.photoSaturation) + "%)";
+					context.drawImage(image, 0, 0, canvas.width, canvas.height);
+					return canvas;
+				}
+
+				$scope.loadDesignPhoto = function (files) {
+					var file = files && files[0];
+					var input = $window.document.getElementById("designPhotoFile");
+					if (input) input.value = "";
+					if (!file) return;
+					if (!/^image\/(png|jpeg|webp)$/i.test(file.type) || file.size > 20 * 1024 * 1024) {
+						$scope.designStudio.status = "Choose a PNG, JPEG, or WebP photo smaller than 20 MB.";
+						return;
+					}
+					if (designPhotoUrl) $window.URL.revokeObjectURL(designPhotoUrl);
+					designPhotoUrl = $window.URL.createObjectURL(file);
+					$scope.designStudio.photoUrl = designPhotoUrl;
+					$scope.designStudio.photoName = file.name;
+					$scope.resetDesignPhoto();
+					$scope.designStudio.status = "Photo loaded locally. Your original file is unchanged and not uploaded.";
+				};
+
+				$scope.resetDesignPhoto = function () {
+					$scope.designStudio.photoBrightness = 100;
+					$scope.designStudio.photoContrast = 100;
+					$scope.designStudio.photoSaturation = 100;
+				};
+
+				$scope.clearDesignPhoto = function () {
+					if (designPhotoUrl) $window.URL.revokeObjectURL(designPhotoUrl);
+					designPhotoUrl = "";
+					$scope.designStudio.photoUrl = "";
+					$scope.designStudio.photoName = "";
+					$scope.designStudio.status = "Photo removed from the local preview.";
+				};
+
+				$scope.exportDesignPhoto = function () {
+					try {
+						var canvas = getEditedPhotoCanvas();
+						canvas.toBlob(function (blob) {
+							if (!blob) {
+								$scope.$applyAsync(function () { $scope.designStudio.status = "The edited image could not be exported."; });
+								return;
+							}
+							downloadDesignBlob(blob, "fieldnote-edited-photo.png");
+							$scope.$applyAsync(function () { $scope.designStudio.status = "Edited photo exported as PNG. Your source image was not changed."; });
+						}, "image/png");
+					} catch (error) {
+						$scope.designStudio.status = error.message || "The edited image could not be exported.";
+					}
+				};
+
+				$scope.exportMagazineLayout = function () {
+					var imageData = "";
+					try {
+						if ($scope.designStudio.photoUrl) imageData = getEditedPhotoCanvas().toDataURL("image/jpeg", 0.88);
+						var title = escapeCertificateText($scope.designStudio.magazineTitle || "Untitled");
+						var subtitle = escapeCertificateText($scope.designStudio.magazineSubtitle || "");
+						var story = escapeCertificateText($scope.designStudio.magazineStory || "");
+						var issue = escapeCertificateText($scope.designStudio.magazineIssue || "");
+						var brand = escapeCertificateText($scope.designStudio.brandName || "FIELDNOTE");
+						var tagline = escapeCertificateText($scope.designStudio.tagline || "");
+						var accentColor = /^#[0-9a-f]{6}$/i.test($scope.designStudio.primaryColor) ? $scope.designStudio.primaryColor : "#1d6b52";
+						var css = "@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;background:#e8ebe6;color:#172a25;font-family:Georgia,serif}.cover{position:relative;width:210mm;min-height:297mm;margin:20px auto;padding:16mm;background:#f8f6ee;overflow:hidden}.masthead{display:flex;justify-content:space-between;border-bottom:2px solid " + accentColor + ";padding-bottom:10px;font:700 15px Arial,sans-serif;letter-spacing:2px}.cover img{display:block;width:100%;height:105mm;object-fit:cover;margin:14mm 0 8mm}.kicker{color:" + accentColor + ";font:700 11px Arial,sans-serif;letter-spacing:2px}.cover h1{max-width:170mm;margin:8px 0;font-size:42pt;line-height:1}.deck{font-size:18pt;font-style:italic}.story{max-width:150mm;font-size:13pt;line-height:1.6}.footer{position:absolute;bottom:15mm;left:16mm;color:#637168;font:11px Arial,sans-serif}@media print{body{background:#fff}.cover{margin:0;box-shadow:none}}";
+						var html = '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' + title + '</title><style>' + css + '</style></head><body><main class="cover"><header class="masthead"><span>' + brand + '</span><span>' + issue + '</span></header>' + (imageData ? '<img src="' + imageData + '" alt="Cover photograph">' : '') + '<span class="kicker">THE CREATIVE JOURNAL</span><h1>' + title + '</h1><p class="deck">' + subtitle + '</p><p class="story">' + story + '</p><footer class="footer">' + tagline + '</footer></main></body></html>';
+						downloadDesignBlob(new $window.Blob([html], { type: "text/html;charset=utf-8" }), "fieldnote-magazine-cover.html");
+						$scope.designStudio.status = "Print-ready magazine cover exported. Open the HTML file and print or save it as PDF.";
+					} catch (error) {
+						$scope.designStudio.status = error.message || "The magazine layout could not be exported.";
+					}
+				};
+
+				$scope.loadDesignVideo = function (files) {
+					var file = files && files[0];
+					var input = $window.document.getElementById("designVideoFile");
+					if (input) input.value = "";
+					if (!file) return;
+					if (!/^video\//i.test(file.type) || file.size > 500 * 1024 * 1024) {
+						$scope.designStudio.status = "Choose a video file smaller than 500 MB.";
+						return;
+					}
+					$scope.pauseDesignVideo();
+					if (designVideoUrl) $window.URL.revokeObjectURL(designVideoUrl);
+					designVideoUrl = $window.URL.createObjectURL(file);
+					$scope.designStudio.videoUrl = designVideoUrl;
+					$scope.designStudio.videoName = file.name;
+					$scope.designStudio.videoReady = false;
+					$scope.designStudio.videoStart = 0;
+					$scope.designStudio.videoEnd = 10;
+					$timeout(function () {
+						var video = $window.document.getElementById("designVideoPreview");
+						if (!video) return;
+						video.onloadedmetadata = function () {
+							$scope.$applyAsync(function () {
+								if (!Number.isFinite(video.duration) || video.duration <= 0) {
+									$scope.designStudio.status = "This video has no readable duration. Choose another browser-supported video.";
+									return;
+								}
+								$scope.designStudio.videoEnd = Math.round(video.duration * 10) / 10;
+								$scope.designStudio.videoReady = true;
+							});
+						};
+						video.onerror = function () {
+							$scope.$applyAsync(function () {
+								$scope.designStudio.videoReady = false;
+								$scope.designStudio.status = "This video format could not be decoded by your browser. Try a supported MP4 or WebM file.";
+							});
+						};
+						video.src = designVideoUrl;
+						video.load();
+					});
+					$scope.designStudio.status = "Video loaded locally. It is not uploaded or rendered by Fieldnote.";
+				};
+
+				$scope.pauseDesignVideo = function () {
+					if (designVideoTimer) $window.clearInterval(designVideoTimer);
+					designVideoTimer = null;
+					var video = $window.document.getElementById("designVideoPreview");
+					if (video) video.pause();
+				};
+
+				$scope.previewDesignVideo = function () {
+					var video = $window.document.getElementById("designVideoPreview");
+					var start = Number($scope.designStudio.videoStart);
+					var end = Number($scope.designStudio.videoEnd);
+					if (!$scope.designStudio.videoReady || !video || !Number.isFinite(video.duration) || start < 0 || end <= start || end > video.duration) {
+						$scope.designStudio.status = "Set an in point before the out point and keep both within the video duration.";
+						return;
+					}
+					$scope.pauseDesignVideo();
+					video.currentTime = start;
+					var playback = video.play();
+					if (playback && typeof playback.catch === "function") playback.catch(function () {
+						$scope.$applyAsync(function () { $scope.designStudio.status = "Video playback was blocked. Press play in the video controls."; });
+					});
+					designVideoTimer = $window.setInterval(function () {
+						if (video.currentTime >= end) {
+							$scope.pauseDesignVideo();
+							$scope.$applyAsync(function () { $scope.designStudio.status = "Selected video range preview complete."; });
+						}
+					}, 100);
+					$scope.designStudio.status = "Previewing the selected range with your motion title.";
+				};
+
+				$scope.clearDesignVideo = function () {
+					$scope.pauseDesignVideo();
+					var video = $window.document.getElementById("designVideoPreview");
+					if (video) {
+						video.removeAttribute("src");
+						video.load();
+					}
+					if (designVideoUrl) $window.URL.revokeObjectURL(designVideoUrl);
+					designVideoUrl = "";
+					$scope.designStudio.videoUrl = "";
+					$scope.designStudio.videoName = "";
+					$scope.designStudio.videoReady = false;
+					$scope.designStudio.status = "Video removed from the local preview.";
+				};
+
+				$scope.exportVideoEdit = function () {
+					var video = $window.document.getElementById("designVideoPreview");
+					var start = Number($scope.designStudio.videoStart);
+					var end = Number($scope.designStudio.videoEnd);
+					if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start || ($scope.designStudio.videoUrl && (!$scope.designStudio.videoReady || !video || !Number.isFinite(video.duration) || end > video.duration))) {
+						$scope.designStudio.status = "Set a valid video in/out range before exporting the edit recipe.";
+						return;
+					}
+					var recipe = {
+						format: "fieldnote-video-edit-v1",
+						sourceFile: $scope.designStudio.videoName || null,
+						inPointSeconds: Number($scope.designStudio.videoStart),
+						outPointSeconds: Number($scope.designStudio.videoEnd),
+						titleOverlay: $scope.designStudio.videoTitle,
+						note: "Edit settings only; source video is not included and rendering is not supported in this workspace."
+					};
+					downloadDesignBlob(new $window.Blob([JSON.stringify(recipe, null, 2)], { type: "application/json;charset=utf-8" }), "fieldnote-video-edit.json");
+					$scope.designStudio.status = "Video edit recipe exported as JSON. It contains settings, not rendered footage.";
 				};
 
 				$scope.addInstructorModule = function () {
 					var module = $scope.newInstructorModule;
 					var questions = module.assessmentQuestions || [];
+					var standardsError = validateInstructorLessonStandards(module);
+					if (standardsError) {
+						$scope.instructorStudioError = standardsError;
+						return;
+					}
+					if (questions.length < 3) {
+						$scope.instructorStudioError = "Add at least 3 instructor-authored assessment questions.";
+						return;
+					}
 					if (!module.title.trim() || !module.objective.trim() || !module.content.trim() || !questions.length || questions.length > 20 || questions.some(function (question) {
 						return !question.prompt.trim() || question.options.length < 2 || question.options.some(function (option) { return !option.trim(); }) || question.answerIndex < 0 || question.answerIndex >= question.options.length;
 					})) {
@@ -941,6 +1536,8 @@ if (typeof angular !== 'undefined') {
 						title: module.title.trim(),
 						objective: module.objective.trim(),
 						content: module.content.trim(),
+						keyPoints: instructorKeyPoints(module.keyPointsText),
+						practice: module.practice.trim(),
 						videoUrl: module.videoUrl.trim(),
 						assessmentQuestions: questions.map(function (question) {
 							return { prompt: question.prompt.trim(), options: question.options.map(function (option) { return option.trim(); }), answerIndex: Number(question.answerIndex) };
@@ -952,14 +1549,14 @@ if (typeof angular !== 'undefined') {
 
 				$scope.addInstructorQuestion = function () {
 					if ($scope.newInstructorModule.assessmentQuestions.length >= 20) {
-						$scope.instructorStudioError = "A module can have up to 20 questions.";
+						$scope.instructorStudioError = "A module can have 3 to 20 questions.";
 						return;
 					}
 					$scope.newInstructorModule.assessmentQuestions.push(createAssessmentQuestionDraft());
 				};
 
 				$scope.removeInstructorQuestion = function (index) {
-					if ($scope.newInstructorModule.assessmentQuestions.length > 1) $scope.newInstructorModule.assessmentQuestions.splice(index, 1);
+					if ($scope.newInstructorModule.assessmentQuestions.length > 3) $scope.newInstructorModule.assessmentQuestions.splice(index, 1);
 				};
 
 				$scope.downloadInstructorModule = function (module) {
@@ -993,6 +1590,8 @@ if (typeof angular !== 'undefined') {
 									title: module.title,
 									objective: module.objective,
 									content: module.content,
+									keyPointsText: Array.isArray(module.keyPoints) ? module.keyPoints.join("\n") : "",
+									practice: typeof module.practice === "string" ? module.practice : "",
 									videoUrl: typeof module.videoUrl === "string" ? module.videoUrl : "",
 									assessmentQuestions: module.assessmentQuestions.map(function (question) {
 										if (!question || typeof question.prompt !== "string" || !Array.isArray(question.options) || question.options.length < 2 || question.options.length > 6 || !Number.isInteger(question.answerIndex) || question.answerIndex < 0 || question.answerIndex >= question.options.length) throw new Error();
@@ -1407,11 +2006,8 @@ if (typeof angular !== 'undefined') {
 						}
 						return items;
 					}
-					if (lesson.assessmentQuestions && lesson.assessmentQuestions.length) {
-						return shuffle(lesson.assessmentQuestions.map(function (question) {
-							return { prompt: question.prompt, options: question.options.slice(), answer: question.options[question.answerIndex] };
-						}));
-					}
+					var instructorQuestions = instructorAssessmentQuestions(lesson);
+					if (instructorQuestions.length) return shuffle(instructorQuestions);
 					var answerPool = lesson.keyPoints && lesson.keyPoints.length ? lesson.keyPoints.slice() : [];
 					if (lesson.objective && answerPool.indexOf(lesson.objective) === -1) answerPool.push(lesson.objective);
 					if (!answerPool.length) answerPool.push(lesson.objective || lesson.title);
@@ -1446,18 +2042,29 @@ if (typeof angular !== 'undefined') {
 					return $scope.lessonTest && $scope.lessonTest.questions.every(function (question) { return !!question.selectedAnswer; });
 				};
 
+				$scope.lessonTestDescription = function () {
+					var lesson = coachLesson();
+					return lesson && instructorAssessmentQuestions(lesson).length
+						? "Lesson assessment aligned to the learning objectives and key ideas. Score at least 70% to pass. This is not a secure or proctored exam."
+						: "Practice questions generated from this lesson. Score at least 70% to pass. This is not a secure or proctored exam.";
+				};
+
 				$scope.submitLessonTest = function () {
 					if (!$scope.lessonTestReady()) return;
 					var lesson = $scope.selectedCourse.curriculum[$scope.selectedLessonIndex];
 					var score = $scope.lessonTest.questions.filter(function (question) { return question.selectedAnswer === question.answer; }).length;
 					var total = $scope.lessonTest.questions.length;
 					var passed = score / total >= 0.7;
+					var wasCertificateEligible = $scope.isNanodegreeEligible($scope.enrollmentFor($scope.selectedCourse.id), $scope.selectedCourse);
 					$scope.lessonTest.score = score;
 					$scope.lessonTest.total = total;
 					$scope.lessonTest.passed = passed;
 					$scope.lessonTest.submitted = true;
 					$scope.quizResults[$scope.selectedCourse.id + ":" + lesson.id] = { score: score, total: total, passed: passed, completedAt: new Date().toISOString() };
 					persist();
+					if (passed && !wasCertificateEligible && $scope.isNanodegreeEligible($scope.enrollmentFor($scope.selectedCourse.id), $scope.selectedCourse)) {
+						$scope.downloadCourseCertificate($scope.selectedCourse);
+					}
 				};
 
 				$scope.lessonQuizResult = function (course, lesson) {
@@ -1579,7 +2186,7 @@ if (typeof angular !== 'undefined') {
 
 				$scope.coachLoading = false;
 
-				function askGeminiCoach(question) {
+				function askCopilotCoach(question) {
 					if (!question || $scope.coachLoading) return;
 					$scope.coachMessages.push({ role: "user", text: question });
 					$scope.coachLoading = true;
@@ -1611,15 +2218,15 @@ if (typeof angular !== 'undefined') {
 					var question = ($scope.coachState.draft || "").trim();
 					if (!question) return;
 					$scope.coachState.draft = "";
-					return askGeminiCoach(question);
+					return askCopilotCoach(question);
 				};
 
 				$scope.teachCurrentPage = function () {
-					return askGeminiCoach("Teach me this part.");
+					return askCopilotCoach("Teach me this part.");
 				};
 
 				$scope.summarizeCurrentPage = function () {
-					return askGeminiCoach("Summarize this part.");
+					return askCopilotCoach("Summarize this part.");
 				};
 
 				$scope.currentLessonDiscussion = function () {
@@ -1676,31 +2283,102 @@ if (typeof angular !== 'undefined') {
 					persist();
 					var courseComplete = $scope.isCourseComplete(enrollment, $scope.selectedCourse);
 					showToast(lessonCompletionMessage(streak, courseComplete));
-					if (courseComplete) $scope.downloadCourseCertificate($scope.selectedCourse);
+					if ($scope.isNanodegreeEligible(enrollment, $scope.selectedCourse)) $scope.downloadCourseCertificate($scope.selectedCourse);
 				};
 
 				$scope.downloadCourseCertificate = function (course) {
 					var enrollment = $scope.enrollmentFor(course.id);
-					if (!$scope.student || !$scope.isCourseComplete(enrollment, course)) return;
-					var printWindow = $window.open("", "_blank");
-					if (!printWindow) {
-						showToast("Allow pop-ups to print or save your certificate.");
+					if (!$scope.student || !$scope.isNanodegreeEligible(enrollment, course)) return;
+					var canvas = $window.document.createElement("canvas");
+					canvas.width = 1600;
+					canvas.height = 1131;
+					var context = canvas.getContext("2d");
+					if (!context) {
+						showToast("Your browser could not create the certificate PDF.");
 						return;
 					}
 					var certificateInstructor = $scope.instructorById(course.instructorId);
-					var certificateDetails = {
-						studentName: $scope.student.name,
-						courseTitle: course.title,
-						instructorName: certificateInstructor.name,
-						instructorRole: certificateInstructor.role,
-						instructorSpecialty: certificateInstructor.specialty,
-						issuedDate: new Date().toLocaleDateString()
-					};
-					printWindow.document.open();
-					printWindow.document.write(buildCourseCertificateMarkup(certificateDetails));
-					printWindow.document.close();
-					printWindow.focus();
-					$timeout(function () { printWindow.print(); }, 250);
+					var centerX = canvas.width / 2;
+					function drawCentered(text, y, font, color, maxWidth) {
+						context.font = font;
+						context.fillStyle = color;
+						context.textAlign = "center";
+						context.textBaseline = "middle";
+						var sizeMatch = font.match(/(\d+)px/);
+						var fontSize = sizeMatch ? Number(sizeMatch[1]) : 32;
+						while (context.measureText(text).width > maxWidth && fontSize > 18) {
+							fontSize -= 2;
+							context.font = font.replace(/\d+px/, fontSize + "px");
+						}
+						context.fillText(text, centerX, y, maxWidth);
+					}
+					try {
+						context.fillStyle = "#fbfcf9";
+						context.fillRect(0, 0, canvas.width, canvas.height);
+						context.strokeStyle = "#1d6b52";
+						context.lineWidth = 12;
+						context.strokeRect(38, 38, canvas.width - 76, canvas.height - 76);
+						context.strokeStyle = "#d9b866";
+						context.lineWidth = 2;
+						context.strokeRect(58, 58, canvas.width - 116, canvas.height - 116);
+
+						var markX = centerX - 175;
+						var markY = 103;
+						var gradient = context.createLinearGradient(markX, markY, markX + 58, markY + 58);
+						gradient.addColorStop(0, "#1d6b52");
+						gradient.addColorStop(1, "#d9f276");
+						context.fillStyle = gradient;
+						context.fillRect(markX, markY, 58, 58);
+						context.save();
+						context.translate(markX + 29, markY + 29);
+						context.rotate(Math.PI / 4);
+						context.fillStyle = "#fff";
+						context.fillRect(-12, -12, 24, 24);
+						context.restore();
+						context.textAlign = "left";
+						context.textBaseline = "middle";
+						context.fillStyle = "#172a25";
+						context.font = "800 42px Arial, sans-serif";
+						context.fillText("FIELDNOTE", markX + 75, markY + 25);
+						context.fillStyle = "#1d6b52";
+						context.font = "700 16px Arial, sans-serif";
+						context.fillText("LEARNING", markX + 78, markY + 48);
+
+						drawCentered("NANODEGREE CERTIFICATE", 232, "700 24px Arial, sans-serif", "#1d6b52", 1300);
+						drawCentered("Certificate of Completion", 310, "700 54px Georgia, serif", "#172a25", 1380);
+						drawCentered("This certificate is awarded to", 400, "26px Georgia, serif", "#52665b", 1320);
+						drawCentered($scope.student.name, 492, "italic 54px Georgia, serif", "#174d3d", 1380);
+						drawCentered("for completing the Fieldnote course", 568, "26px Georgia, serif", "#52665b", 1320);
+						drawCentered(course.title, 642, "700 38px Georgia, serif", "#172a25", 1380);
+						context.strokeStyle = "#a9b5ad";
+						context.lineWidth = 2;
+						context.beginPath();
+						context.moveTo(500, 772);
+						context.lineTo(1100, 772);
+						context.stroke();
+						drawCentered(certificateInstructor.name, 729, "italic 38px cursive", "#174d3d", 560);
+						drawCentered("INSTRUCTOR SIGNATURE", 807, "700 17px Arial, sans-serif", "#52665b", 560);
+						drawCentered(certificateInstructor.role || "Fieldnote Instructor", 838, "20px Arial, sans-serif", "#52665b", 560);
+						drawCentered("Issued " + new Date().toLocaleDateString(), 913, "20px Arial, sans-serif", "#52665b", 600);
+						drawCentered("Instructor name is typed, not verified. Fieldnote course completion record; not an accredited degree.", 1000, "16px Arial, sans-serif", "#718078", 1320);
+
+						var imageData = canvas.toDataURL("image/jpeg", 0.96).split(",")[1];
+						if (!imageData) throw new Error("The certificate image could not be prepared.");
+						var binaryImage = $window.atob(imageData);
+						var jpegBytes = new Uint8Array(binaryImage.length);
+						for (var imageIndex = 0; imageIndex < binaryImage.length; imageIndex += 1) jpegBytes[imageIndex] = binaryImage.charCodeAt(imageIndex);
+						var pdfBytes = buildPdfWithJpegImage(jpegBytes, canvas.width, canvas.height);
+						var pdfBlob = new $window.Blob([pdfBytes], { type: "application/pdf" });
+						var downloadUrl = $window.URL.createObjectURL(pdfBlob);
+						var link = $window.document.createElement("a");
+						link.href = downloadUrl;
+						var courseFileName = (course.title || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "fieldnote-nanodegree";
+						link.download = courseFileName + "-nanodegree-certificate.pdf";
+						link.click();
+						$timeout(function () { $window.URL.revokeObjectURL(downloadUrl); }, 1000);
+					} catch (error) {
+						showToast(error.message || "The certificate PDF could not be created.");
+					}
 				};
 
 				$scope.downloadGuide = function (course) {
@@ -1785,6 +2463,14 @@ if (typeof angular !== 'undefined') {
 
 				$scope.isCourseComplete = function (enrollment, course) {
 					return !!course && hasCompletedCourse(enrollment, $scope.lessonCount(course));
+				};
+
+				$scope.hasPassedAllLessonTests = function (course) {
+					return hasPassedCourseAssessments($scope.quizResults, course);
+				};
+
+				$scope.isNanodegreeEligible = function (enrollment, course) {
+					return $scope.isCourseComplete(enrollment, course) && $scope.hasPassedAllLessonTests(course);
 				};
 
 				$scope.completedLessons = function () {
@@ -1979,8 +2665,8 @@ if (typeof angular !== 'undefined') {
 					$scope.showPassword = !$scope.showPassword;
 				};
 
-				$scope.signInWithGoogle = function () {
-					$window.location.assign("/api/auth/google/start");
+				$scope.signInWithGitHub = function () {
+					$window.location.assign("/api/auth/github/start");
 				};
 
 				$scope.requestPasswordReset = function () {
@@ -2082,7 +2768,11 @@ if (typeof angular !== 'undefined') {
 						$scope.formError = "";
 						loadAuthenticatedUser(result.user);
 						showToast("Signed in successfully.");
-					}).catch(function (error) { $scope.formError = error.message; });
+					}).catch(function (error) {
+						$scope.formError = error.message === "Invalid login credentials"
+							? "Email or password is incorrect. Check your details, register first, or reset your password."
+							: error.message;
+					});
 				};
 
 				$scope.logout = function () {

@@ -289,10 +289,10 @@
 		.teaching-subject input { flex: none; margin: 2px 0 0; }
 		.form-actions { display: flex; align-items: center; gap: 12px; margin-top: 17px; }
 		.form-message { color: #a64334; font-size: 12px; margin: 10px 0 0; }
-		.google-signin-area { margin-top: 18px; }
-		.google-signin { width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; }
-		.google-mark { color: #4285f4; font: 700 17px "Manrope", sans-serif; }
-		.google-signin-area .subheading { margin: 8px 0 0; }
+		.github-signin-area { margin-top: 18px; }
+		.github-signin { width: 100%; display: flex; justify-content: center; align-items: center; gap: 10px; }
+		.github-mark { color: #24292f; font: 700 15px "Manrope", sans-serif; }
+		.github-signin-area .subheading { margin: 8px 0 0; }
 		.profile-summary { background: #edf3e9; border-radius: 8px; padding: 20px; }
 		.profile-avatar { width: 54px; height: 54px; display: grid; place-items: center; border-radius: 50%; background: var(--lime); color: var(--green-dark); font: 800 20px "Manrope", sans-serif; margin-bottom: 13px; }
 				.profile-photo-preview { display: block; width: 96px; height: 96px; object-fit: cover; border: 1px solid var(--line); border-radius: 50%; margin-top: 12px; }
@@ -356,6 +356,108 @@
 				.code-lab-head span { overflow-wrap: anywhere; }
 				.demo-player-state { align-items: flex-start; flex-direction: column; }
 			}
+		.app-legal-footer { max-width: 1370px; margin: 0 auto; padding: 18px 34px 28px; display: flex; justify-content: center; align-items: center; gap: 12px; color: var(--muted); font-size: 11px; }
+		.app-legal-footer button { border: 0; padding: 4px; background: transparent; color: var(--green); font: inherit; text-decoration: underline; text-underline-offset: 3px; }
+		.design-studio { --studio-border: var(--line); }
+		.design-studio-toolbar { display: flex; flex-wrap: wrap; gap: 7px; padding: 5px; margin-bottom: 16px; border: 1px solid var(--line); border-radius: 9px; background: var(--white); }
+		.design-studio-toolbar .lab-tab { flex: 1 1 150px; }
+		.design-editor-workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 15px; align-items: stretch; }
+		.design-editor-panel, .design-preview-panel, .brand-controls, .sketch-panel { min-width: 0; padding: 17px; border: 1px solid var(--line); border-radius: 9px; background: var(--white); }
+		.design-file-tabs { display: flex; gap: 4px; margin-bottom: 0; padding: 5px 5px 0; border-radius: 7px 7px 0 0; background: #203a30; }
+		.design-file-tabs button { padding: 8px 11px; border: 0; border-radius: 5px 5px 0 0; color: #c7d7cc; background: transparent; font: 600 11px/1.3 "DM Sans", sans-serif; }
+		.design-file-tabs button.active { color: #172a25; background: #f5f7f2; }
+		.design-code-editor { display: block; width: 100%; min-height: 330px; resize: vertical; padding: 15px; border: 0; border-radius: 0 0 7px 7px; outline: none; background: #f5f7f2; color: #172a25; font: 12px/1.65 Consolas, "Courier New", monospace; tab-size: 2; }
+		.design-code-editor:focus-visible { box-shadow: inset 0 0 0 2px var(--green); }
+		.design-editor-actions, .sketch-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding-top: 12px; }
+		.design-local-badge { margin-left: auto; color: var(--muted); font-size: 11px; }
+		.design-preview-panel { display: flex; flex-direction: column; }
+		.design-preview-panel .section-head { flex: none; }
+		.design-preview-dot { width: 9px; height: 9px; border-radius: 50%; background: #70ae6b; box-shadow: 0 0 0 4px rgba(112,174,107,.14); }
+		.design-preview-frame { flex: 1; width: 100%; min-height: 400px; border: 1px solid var(--line); border-radius: 7px; background: #fff; }
+		.brand-workspace { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 15px; align-items: start; }
+		.brand-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+		.brand-color-field { display: flex; align-items: center; gap: 9px; min-width: 0; color: var(--muted); font-size: 12px; }
+		.brand-color-field label { flex: 1; color: var(--ink); font-weight: 600; }
+		.brand-color-field input, .sketch-toolbar input[type="color"] { width: 38px; height: 34px; padding: 3px; border: 1px solid var(--line); border-radius: 6px; background: var(--white); cursor: pointer; }
+		.brand-mark-preview { display: flex; align-items: center; gap: 16px; margin: 20px 0 16px; padding: 18px; border: 1px solid var(--line); border-radius: 8px; background: var(--paper); overflow-wrap: anywhere; }
+		.brand-mark-tile { width: 68px; height: 68px; flex: none; display: grid; place-items: center; border-radius: 20px; font: 800 24px "Manrope", sans-serif; box-shadow: 0 8px 18px rgba(23,42,37,.12); }
+		.brand-preview-caption { color: var(--muted); font-size: 9px; font-weight: 700; letter-spacing: 1.2px; }
+		.brand-mark-preview h3 { margin: 4px 0; }
+		.brand-mark-preview p { margin: 0; color: var(--muted); font-size: 12px; }
+		.sketch-toolbar { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; color: var(--muted); font-size: 12px; }
+		.sketch-toolbar label { color: var(--ink); font-weight: 600; }
+		.sketch-toolbar input[type="range"] { width: 100px; accent-color: var(--green); }
+		.sketch-toolbar .button-outline { margin-left: auto; padding: 7px 10px; font-size: 12px; }
+		.sketch-tool-active { border-color: var(--green); background: #eaf0e9; }
+		.brand-sketch-canvas { display: block; width: 100%; height: auto; aspect-ratio: 25 / 13; border: 1px solid var(--line); border-radius: 7px; background: #fff; cursor: crosshair; touch-action: none; }
+		.sketch-actions { justify-content: flex-end; }
+		.creative-workspace, .magazine-workspace, .video-workspace { display: grid; grid-template-columns: minmax(0, .85fr) minmax(0, 1.15fr); gap: 15px; align-items: stretch; }
+		.creative-controls, .magazine-controls, .video-controls, .photo-preview-panel, .video-preview-panel { min-width: 0; padding: 17px; border: 1px solid var(--line); border-radius: 9px; background: var(--white); }
+		.creative-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; }
+		.creative-actions .subheading { margin: 0; }
+		.photo-adjustments { display: grid; grid-template-columns: minmax(92px, auto) minmax(100px, 1fr); align-items: center; gap: 13px 15px; margin: 22px 0; }
+		.photo-adjustments label { display: flex; justify-content: space-between; gap: 8px; color: var(--ink); font-size: 12px; font-weight: 600; }
+		.photo-adjustments output { color: var(--muted); font-weight: 400; }
+		.photo-adjustments input { width: 100%; accent-color: var(--green); }
+		.photo-preview-panel { display: grid; min-height: 390px; place-items: center; overflow: hidden; background: #edf0ea; }
+		.photo-preview-panel img { display: block; max-width: 100%; max-height: 620px; object-fit: contain; }
+		.photo-empty-state { display: flex; flex-direction: column; align-items: center; gap: 7px; padding: 32px; color: var(--muted); text-align: center; }
+		.photo-empty-state strong { color: var(--ink); font-size: 15px; }
+		.magazine-controls .field { margin-bottom: 12px; }
+		.magazine-story-input { min-height: 115px; resize: vertical; }
+		.magazine-preview-panel { display: grid; min-width: 0; place-items: center; padding: 20px; border: 1px solid var(--line); border-radius: 9px; background: #e9ece7; }
+		.magazine-preview { position: relative; display: flex; flex-direction: column; width: min(100%, 460px); min-height: 620px; padding: 26px; overflow: hidden; background: #f8f6ee; color: #172a25; box-shadow: 0 16px 38px rgba(23,42,37,.15); }
+		.magazine-masthead { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding-bottom: 10px; border-bottom: 2px solid var(--magazine-accent); font: 800 17px/1.2 "Manrope", sans-serif; letter-spacing: 1px; }
+		.magazine-masthead span { color: #627168; font: 600 9px "DM Sans", sans-serif; letter-spacing: 1px; text-align: right; }
+		.magazine-preview img { width: 100%; height: 205px; margin: 15px 0 12px; object-fit: cover; }
+		.magazine-copy { margin-top: auto; }
+		.magazine-kicker { color: var(--magazine-accent); font-size: 9px; font-weight: 800; letter-spacing: 2px; }
+		.magazine-copy h2 { margin: 8px 0; font: 800 clamp(30px, 5vw, 46px)/.98 "Manrope", sans-serif; letter-spacing: -1.7px; overflow-wrap: anywhere; }
+		.magazine-copy p { color: #52635a; font: 12px/1.6 Georgia, serif; }
+		.magazine-copy .magazine-deck { color: #273a31; font-size: 15px; font-style: italic; }
+		.magazine-footer { margin-top: 20px; padding-top: 8px; border-top: 1px solid #d6ddd4; color: #637168; font-size: 9px; }
+		.video-preview-panel { display: flex; flex-direction: column; justify-content: center; }
+		.video-canvas { position: relative; display: grid; min-height: 250px; place-items: center; overflow: hidden; border-radius: 7px; background: #111a15; }
+		.video-canvas video { display: block; width: 100%; max-height: 510px; background: #111a15; }
+		.video-canvas .photo-empty-state { color: #d3ded5; }
+		.video-canvas .photo-empty-state strong { color: #fff; }
+		.video-title-overlay { position: absolute; right: 7%; bottom: 17%; left: 7%; color: #fff; font: 800 clamp(18px, 4vw, 34px)/1.1 "Manrope", sans-serif; text-align: center; text-shadow: 0 2px 12px rgba(0,0,0,.8); pointer-events: none; animation: design-title-in .5s ease-out both; }
+		@keyframes design-title-in { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+		.video-trim-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+		.video-timeline { display: flex; align-items: center; gap: 10px; margin-top: 15px; color: var(--muted); font-size: 10px; font-weight: 700; }
+		.video-timeline > div { position: relative; flex: 1; height: 8px; border-radius: 8px; background: #dce3db; }
+		.video-timeline i { position: absolute; top: 0; height: 100%; min-width: 2px; border-radius: 8px; background: var(--green); }
+		.privacy-intro { display: flex; align-items: flex-start; gap: 14px; padding: 20px; margin-bottom: 14px; border: 1px solid #cfe0d1; border-radius: 9px; background: #eaf0e9; }
+		.privacy-intro h2 { margin-bottom: 5px; }
+		.privacy-intro p { margin: 0; color: #52665b; }
+		.privacy-shield { width: 38px; height: 38px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--green); color: #fff; font-weight: 800; }
+		.privacy-card-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+		.privacy-card { padding: 18px; }
+		.privacy-card-icon { display: inline-grid; place-items: center; width: 30px; height: 30px; margin-bottom: 13px; border-radius: 8px; background: #eaf0e9; color: var(--green-dark); font-size: 11px; font-weight: 800; }
+		.privacy-card h3 { margin-bottom: 7px; }
+		.privacy-card p, .privacy-card li { color: var(--muted); font-size: 12px; }
+		.privacy-card ul { padding-left: 18px; margin-bottom: 0; }
+		.privacy-card li { margin: 5px 0; }
+		.privacy-card code { color: var(--green-dark); font-weight: 700; }
+		.rights-notice { padding-top: 8px; border-top: 1px solid var(--line); font-weight: 700; }
+		.design-studio-status { min-height: 18px; margin: 13px 0 0; color: var(--muted); font-size: 11px; }
+		body.theme-dark .design-studio-toolbar, body.theme-dark .design-editor-panel, body.theme-dark .design-preview-panel, body.theme-dark .brand-controls, body.theme-dark .sketch-panel, body.theme-dark .privacy-card { background: var(--white); border-color: var(--line); }
+		body.theme-dark .design-file-tabs button.active { color: #e5ece6; background: #1b2820; }
+		body.theme-dark .design-code-editor { color: #e5ece6; background: #111a15; }
+		body.theme-dark .design-preview-frame { background: #fff; }
+		body.theme-dark .brand-mark-preview { background: #111a15; }
+		body.theme-dark .creative-controls, body.theme-dark .magazine-controls, body.theme-dark .video-controls, body.theme-dark .photo-preview-panel, body.theme-dark .video-preview-panel { background: var(--white); border-color: var(--line); }
+		body.theme-dark .photo-preview-panel, body.theme-dark .magazine-preview-panel { background: #111a15; }
+		body.theme-dark .privacy-intro { background: #26392d; border-color: var(--line); }
+		body.theme-dark .privacy-intro p, body.theme-dark .privacy-card code { color: var(--ink); }
+		body.theme-dark .privacy-card-icon { background: #26392d; color: var(--ink); }
+		body.high-contrast .design-editor-panel, body.high-contrast .design-preview-panel, body.high-contrast .brand-controls, body.high-contrast .sketch-panel, body.high-contrast .creative-controls, body.high-contrast .magazine-controls, body.high-contrast .video-controls, body.high-contrast .photo-preview-panel, body.high-contrast .video-preview-panel, body.high-contrast .privacy-card, body.high-contrast .design-studio-toolbar { background: #fff; color: #000; border: 2px solid #000; }
+		body.high-contrast .design-code-editor { color: #fff; background: #000; }
+		body.high-contrast .privacy-intro { color: #000; background: #ff0; border: 2px solid #000; }
+		body.high-contrast .privacy-intro p, body.high-contrast .privacy-card p, body.high-contrast .privacy-card li { color: #000; }
+		@media (max-width: 900px) { .design-editor-workspace, .brand-workspace, .creative-workspace, .magazine-workspace, .video-workspace { grid-template-columns: minmax(0, 1fr); } .design-preview-frame { min-height: 330px; } }
+		@media (max-width: 720px) { .app-legal-footer { padding-inline: 16px; flex-wrap: wrap; } .privacy-card-grid { grid-template-columns: minmax(0, 1fr); } .design-editor-panel, .design-preview-panel, .brand-controls, .sketch-panel, .creative-controls, .magazine-controls, .video-controls, .photo-preview-panel, .video-preview-panel { padding: 13px; } .design-code-editor { min-height: 270px; } .design-local-badge { width: 100%; margin-left: 0; } }
+		@media (max-width: 460px) { .brand-form { grid-template-columns: minmax(0, 1fr); } .sketch-toolbar { gap: 6px; } .sketch-toolbar input[type="range"] { width: 72px; } .brand-mark-preview { padding: 12px; gap: 11px; } .brand-mark-tile { width: 54px; height: 54px; } .design-studio-toolbar .lab-tab { flex-basis: 100%; } }
 			@media (max-width: 520px) {
 				.welcome-banner { display: block; padding: 20px; }
 				.banner-art { display: none; }

@@ -38,6 +38,7 @@
 					<button class="nav-button" ng-class="{active: view === 'instructors'}" ng-click="setView('instructors')"><span class="nav-icon">♙</span>Instructors</button>
 					<button class="nav-button" ng-if="authUser && authUser.role === 'instructor'" ng-class="{active: view === 'instructorStudio'}" ng-click="setView('instructorStudio')"><span class="nav-icon">▣</span>Instructor Studio</button>
 										<button class="nav-button" ng-class="{active: view === 'platform'}" ng-click="setView('platform')"><span class="nav-icon">◈</span>Platform Labs</button>
+					<button class="nav-button" ng-class="{active: view === 'designStudio'}" ng-click="setView('designStudio')"><span class="nav-icon">✎</span>Design Studio</button>
 					<button class="nav-button" ng-class="{active: view === 'account'}" ng-click="setView('account')"><span class="nav-icon">◎</span>Student profile</button>
 				</nav>
 				<div class="sidebar-note"><strong>A little progress adds up.</strong>Your learning record stays on this device, ready whenever you return.</div>
@@ -45,6 +46,7 @@
 
 			<main class="content" ng-include="viewTemplate"></main>
 		</div>
+		<footer class="app-legal-footer"><span>© {{ today | date:'yyyy' }} Fieldnote Learning. All rights reserved.</span><button type="button" ng-click="setView('designStudio'); selectDesignTab('privacy')">Privacy &amp; security</button></footer>
 	</div>
 	<div class="command-overlay" ng-if="commandBarOpen" ng-click="closeCommandBar()">
 		<section class="command-dialog" role="dialog" aria-modal="true" aria-label="Search courses and pages" ng-click="$event.stopPropagation()">
@@ -54,6 +56,8 @@
 				<button type="button" ng-click="goToCommandView('courses')">Course catalog</button>
 				<button type="button" ng-click="goToCommandView('learning')">My learning</button>
 				<button type="button" ng-click="goToCommandView('instructors')">Instructors</button>
+				<button type="button" ng-click="goToCommandView('designStudio')">Design Studio</button>
+				<button type="button" ng-click="goToCommandView('designStudio'); selectDesignTab('privacy')">Privacy &amp; security</button>
 				<button type="button" ng-click="goToCommandView('account')">Student profile</button>
 			</div></div>
 			<div class="command-group"><strong>Courses</strong><div class="command-results">
@@ -64,10 +68,10 @@
 	<div class="toast" role="status" ng-if="toastMessage">{{ toastMessage }}</div>
 	<section id="learningCoachPanel" class="learning-coach-panel" draggable-panel="fieldnote-learning-coach-position" ng-show="coachState.open" role="dialog" aria-label="Learning Coach" aria-describedby="coachDisclosure">
 		<header class="learning-coach-head"><div><h2>Learning Coach</h2><p>{{ coachContextLabel() }}</p></div><button class="learning-coach-close" type="button" aria-label="Close Learning Coach" ng-click="coachState.open = false">&times;</button></header>
-		<p class="coach-notice" id="coachDisclosure">Your question and relevant page or lesson text are sent to Google Gemini for a study response. Do not include sensitive personal information.</p>
+		<p class="coach-notice" id="coachDisclosure">Your question and relevant page or lesson text are sent to GitHub Copilot for a study response. Do not include sensitive personal information.</p>
 		<div class="coach-transcript" role="log" aria-live="polite" aria-relevant="additions text">
 			<div class="coach-message" ng-class="{'from-user': message.role === 'user'}" ng-repeat="message in coachMessages track by $index"><p>{{ message.text }}</p></div>
-			<div class="coach-message" ng-if="coachLoading" aria-live="polite"><p>Gemini is thinking…</p></div>
+			<div class="coach-message" ng-if="coachLoading" aria-live="polite"><p>GitHub Copilot is thinking…</p></div>
 		</div>
 		<div class="coach-quick-actions"><button class="button-outline" type="button" ng-click="teachCurrentPage()">Teach this part</button><button class="button-outline" type="button" ng-click="summarizeCurrentPage()">Summarize</button></div>
 		<form class="coach-form" ng-submit="sendCoachMessage()"><label class="sr-only" for="coachQuestion">Ask the Learning Coach</label><input class="text-input" id="coachQuestion" type="text" ng-model="coachState.draft" placeholder="Ask about this page or lesson" autocomplete="off" maxlength="300" ng-disabled="coachLoading"><button class="button-primary" type="submit" ng-disabled="coachLoading">Ask</button></form>

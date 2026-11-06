@@ -55,37 +55,37 @@ function withSupabaseConfig(t) {
   });
 }
 
-test('Google OAuth start uses PKCE and a secure short-lived verifier cookie', async (t) => {
+test('GitHub OAuth start uses PKCE and a secure short-lived verifier cookie', async (t) => {
   withSupabaseConfig(t);
   const response = createResponse();
-  await fieldnoteApiHandler(createRequest('/api/auth/google/start'), response);
+  await fieldnoteApiHandler(createRequest('/api/auth/github/start'), response);
 
   assert.equal(response.statusCode, 303);
   const authorizeUrl = new URL(response.headers.Location);
   assert.equal(authorizeUrl.origin, 'https://project.supabase.co');
   assert.equal(authorizeUrl.pathname, '/auth/v1/authorize');
-  assert.equal(authorizeUrl.searchParams.get('provider'), 'google');
-  assert.equal(authorizeUrl.searchParams.get('redirect_to'), 'https://fieldnote-preview.vercel.app/api/auth/google/callback');
+  assert.equal(authorizeUrl.searchParams.get('provider'), 'github');
+  assert.equal(authorizeUrl.searchParams.get('redirect_to'), 'https://fieldnote-preview.vercel.app/api/auth/github/callback');
   assert.equal(authorizeUrl.searchParams.get('code_challenge_method'), 's256');
 
   const oauthCookie = response.headers['Set-Cookie'];
-  assert.match(oauthCookie, /fieldnote_google_oauth=([^;]+)/);
+  assert.match(oauthCookie, /fieldnote_github_oauth=([^;]+)/);
   assert.match(oauthCookie, /HttpOnly/);
   assert.match(oauthCookie, /Secure/);
-  const verifier = oauthCookie.match(/fieldnote_google_oauth=([^;]+)/)[1];
+  const verifier = oauthCookie.match(/fieldnote_github_oauth=([^;]+)/)[1];
   const challenge = createHash('sha256').update(verifier).digest('base64url');
   assert.equal(authorizeUrl.searchParams.get('code_challenge'), challenge);
 });
 
-test('Google OAuth production callback uses the stable Vercel production domain', async (t) => {
+test('GitHub OAuth production callback uses the stable Vercel production domain', async (t) => {
   withSupabaseConfig(t);
   process.env.VERCEL_ENV = 'production';
   process.env.VERCEL_PROJECT_PRODUCTION_URL = 'fieldnote-eta-six.vercel.app';
   const response = createResponse();
-  await fieldnoteApiHandler(createRequest('/api/auth/google/start'), response);
+  await fieldnoteApiHandler(createRequest('/api/auth/github/start'), response);
 
   assert.equal(new URL(response.headers.Location).searchParams.get('redirect_to'),
-    'https://fieldnote-eta-six.vercel.app/api/auth/google/callback');
+    'https://fieldnote-eta-six.vercel.app/api/auth/github/callback');
 });
 
 test('email registration confirmation returns learners to the active deployment', async (t) => {
@@ -163,7 +163,7 @@ test('production password recovery code requests use the stable Vercel domain', 
   assert.equal(response.statusCode, 200);
 });
 
-test('Google OAuth callback exchanges the code and stores the session in HttpOnly cookies', async (t) => {
+test('GitHub OAuth callback exchanges the code and stores the session in HttpOnly cookies', async (t) => {
   withSupabaseConfig(t);
   const verifier = 'test-pkce-verifier';
   let exchangeBody;
@@ -177,17 +177,17 @@ test('Google OAuth callback exchanges the code and stores the session in HttpOnl
     }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   };
   const response = createResponse();
-  await fieldnoteApiHandler(createRequest('/api/auth/google/callback?code=one-time-code', 'GET', {}, {
-    cookie: 'fieldnote_google_oauth=' + verifier
+  await fieldnoteApiHandler(createRequest('/api/auth/github/callback?code=one-time-code', 'GET', {}, {
+    cookie: 'fieldnote_github_oauth=' + verifier
   }), response);
 
   assert.deepEqual(exchangeBody, { auth_code: 'one-time-code', code_verifier: verifier });
   assert.equal(response.statusCode, 303);
-  assert.equal(response.headers.Location, 'https://fieldnote-preview.vercel.app/?auth=google-success');
+  assert.equal(response.headers.Location, 'https://fieldnote-preview.vercel.app/?auth=github-success');
   assert.ok(Array.isArray(response.headers['Set-Cookie']));
   assert.match(response.headers['Set-Cookie'][0], /fieldnote_supabase_session=/);
   assert.match(response.headers['Set-Cookie'][0], /HttpOnly/);
-  assert.match(response.headers['Set-Cookie'][1], /fieldnote_google_oauth=.*Max-Age=0/);
+  assert.match(response.headers['Set-Cookie'][1], /fieldnote_github_oauth=.*Max-Age=0/);
 });
 
 test('password recovery requires code verification before a password can be changed', async (t) => {
@@ -218,6 +218,7 @@ test('password recovery requires code verification before a password can be chan
     cookie.startsWith('fieldnote_password_reset=') && !/Max-Age=0/.test(cookie)
   );
   assert.match(resetCookieHeader, /HttpOnly/);
+  assert.match(resetCookieHeader, /Path=\/api\/auth(?:;|$)/);
 
   const resetToken = resetCookieHeader.match(/fieldnote_password_reset=([^;]+)/)[1];
   const updateResponse = createResponse();

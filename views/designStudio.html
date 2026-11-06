@@ -1,0 +1,134 @@
+<p class="service-message" role="alert" ng-if="serviceError">{{ serviceError }}</p>
+<section class="design-studio">
+	<div class="page-heading">
+		<div><div class="eyebrow">Create &amp; protect</div><h1>Design Studio</h1><p class="subheading">Design interfaces, build a brand, edit photos, lay out a magazine, and prototype video ideas.</p></div>
+		<div class="design-heading-actions"><button class="button-outline" type="button" ng-click="saveDesignDraft()">Save on this device</button></div>
+	</div>
+	<div class="design-studio-toolbar" role="tablist" aria-label="Design Studio workspaces">
+		<button class="lab-tab" type="button" role="tab" ng-class="{active: designStudio.tab === 'code'}" ng-attr-aria-selected="{{ designStudio.tab === 'code' }}" ng-click="selectDesignTab('code')">UI / UX code editor</button>
+		<button class="lab-tab" type="button" role="tab" ng-class="{active: designStudio.tab === 'brand'}" ng-attr-aria-selected="{{ designStudio.tab === 'brand' }}" ng-click="selectDesignTab('brand')">Logo &amp; vector</button>
+		<button class="lab-tab" type="button" role="tab" ng-class="{active: designStudio.tab === 'photo'}" ng-attr-aria-selected="{{ designStudio.tab === 'photo' }}" ng-click="selectDesignTab('photo')">Photo editor</button>
+		<button class="lab-tab" type="button" role="tab" ng-class="{active: designStudio.tab === 'magazine'}" ng-attr-aria-selected="{{ designStudio.tab === 'magazine' }}" ng-click="selectDesignTab('magazine')">Magazine layout</button>
+		<button class="lab-tab" type="button" role="tab" ng-class="{active: designStudio.tab === 'video'}" ng-attr-aria-selected="{{ designStudio.tab === 'video' }}" ng-click="selectDesignTab('video')">Video &amp; motion</button>
+		<button class="lab-tab" type="button" role="tab" ng-class="{active: designStudio.tab === 'privacy'}" ng-attr-aria-selected="{{ designStudio.tab === 'privacy' }}" ng-click="selectDesignTab('privacy')">Privacy &amp; security</button>
+	</div>
+
+	<div class="design-editor-workspace" ng-show="designStudio.tab === 'code'">
+		<article class="design-editor-panel">
+			<div class="section-head"><div><h2>Build a UI prototype</h2><p class="subheading">Edit HTML, CSS, and JavaScript, then run a safe local preview.</p></div></div>
+			<div class="design-file-tabs" role="tablist" aria-label="Prototype files">
+				<button type="button" role="tab" ng-class="{active: designStudio.editorTab === 'html'}" ng-attr-aria-selected="{{ designStudio.editorTab === 'html' }}" ng-click="designStudio.editorTab = 'html'">index.html</button>
+				<button type="button" role="tab" ng-class="{active: designStudio.editorTab === 'css'}" ng-attr-aria-selected="{{ designStudio.editorTab === 'css' }}" ng-click="designStudio.editorTab = 'css'">styles.css</button>
+				<button type="button" role="tab" ng-class="{active: designStudio.editorTab === 'javascript'}" ng-attr-aria-selected="{{ designStudio.editorTab === 'javascript' }}" ng-click="designStudio.editorTab = 'javascript'">app.js</button>
+			</div>
+			<label class="sr-only" for="designCodeEditor">{{ designStudio.editorTab }} prototype source</label>
+			<textarea class="design-code-editor" id="designCodeEditor" ng-if="designStudio.editorTab === 'html'" ng-model="designStudio.html" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="HTML prototype source"></textarea>
+			<textarea class="design-code-editor" id="designCodeEditor" ng-if="designStudio.editorTab === 'css'" ng-model="designStudio.css" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="CSS prototype source"></textarea>
+			<textarea class="design-code-editor" id="designCodeEditor" ng-if="designStudio.editorTab === 'javascript'" ng-model="designStudio.javascript" spellcheck="false" autocapitalize="off" autocomplete="off" autocorrect="off" aria-label="JavaScript prototype source"></textarea>
+			<div class="design-editor-actions">
+				<button class="button-primary" type="button" ng-click="runDesignPreview()">Run preview</button>
+				<button class="button-outline" type="button" ng-click="downloadDesignPreview()">Export prototype</button>
+				<span class="design-local-badge">Local sandbox · no network</span>
+			</div>
+		</article>
+		<article class="design-preview-panel">
+			<div class="section-head"><div><h2>Live preview</h2><p class="subheading">Scripts run in a restricted frame and cannot access this dashboard.</p></div><span class="design-preview-dot" aria-label="Preview is isolated"></span></div>
+			<iframe id="designPreviewFrame" class="design-preview-frame" title="Isolated UI prototype preview" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+		</article>
+	</div>
+
+	<div class="brand-workspace" ng-show="designStudio.tab === 'brand'">
+		<article class="panel brand-controls">
+			<div class="section-head"><div><h2>Brand identity</h2><p class="subheading">Try a name, a short promise, and a focused color pair.</p></div></div>
+			<div class="brand-form">
+				<div class="field"><label for="designBrandName">Brand name</label><input class="text-input" id="designBrandName" type="text" maxlength="60" ng-model="designStudio.brandName" placeholder="Your brand name"></div>
+				<div class="field"><label for="designBrandTagline">Tagline</label><input class="text-input" id="designBrandTagline" type="text" maxlength="90" ng-model="designStudio.tagline" placeholder="A short, memorable promise"></div>
+				<div class="brand-color-field"><label for="brandPrimaryColor">Primary color</label><input id="brandPrimaryColor" type="color" ng-model="designStudio.primaryColor"><span>{{ designStudio.primaryColor }}</span></div>
+				<div class="brand-color-field"><label for="brandAccentColor">Accent color</label><input id="brandAccentColor" type="color" ng-model="designStudio.accentColor"><span>{{ designStudio.accentColor }}</span></div>
+			</div>
+			<div class="brand-mark-preview" aria-label="Brand identity preview">
+				<div class="brand-mark-tile" ng-style="{'background-color': designStudio.primaryColor, 'color': designStudio.accentColor}"><span>{{ (designStudio.brandName || 'F').split(' ')[0].charAt(0) }}{{ (designStudio.brandName || '').split(' ')[1].charAt(0) }}</span></div>
+				<div><span class="brand-preview-caption">BRAND CONCEPT</span><h3>{{ designStudio.brandName || 'Your brand name' }}</h3><p>{{ designStudio.tagline || 'Your brand promise goes here.' }}</p></div>
+			</div>
+			<button class="button-outline" type="button" ng-click="downloadBrandMark()">Export editable SVG brand mark</button>
+		</article>
+		<article class="panel sketch-panel">
+			<div class="section-head"><div><h2>Sketch &amp; iterate</h2><p class="subheading">Draw a logo idea, layout, or visual direction.</p></div></div>
+			<div class="sketch-toolbar">
+				<label for="sketchBrushColor">Brush</label><input id="sketchBrushColor" type="color" ng-model="designStudio.brushColor" ng-disabled="designStudio.eraser">
+				<label for="sketchBrushSize">Size</label><input id="sketchBrushSize" type="range" min="1" max="24" ng-model="designStudio.brushSize"><span>{{ designStudio.brushSize }} px</span>
+				<button class="button-outline" type="button" ng-class="{'sketch-tool-active': designStudio.eraser}" ng-attr-aria-pressed="{{ designStudio.eraser }}" ng-click="designStudio.eraser = !designStudio.eraser">{{ designStudio.eraser ? 'Eraser on' : 'Eraser' }}</button>
+			</div>
+			<canvas id="brandSketchCanvas" class="brand-sketch-canvas" width="1000" height="520" design-canvas design-canvas-color="designStudio.brushColor" design-canvas-size="designStudio.brushSize" design-canvas-eraser="designStudio.eraser" aria-label="Brand identity drawing canvas. Draw with a mouse, pen, or touch."></canvas>
+			<div class="sketch-actions"><button class="button-outline" type="button" ng-click="clearDesignSketch()">Clear sketch</button><button class="button-outline" type="button" ng-click="downloadDesignSketch()">Export sketch PNG</button></div>
+		</article>
+	</div>
+
+	<div class="creative-workspace" ng-show="designStudio.tab === 'photo'">
+		<article class="panel creative-controls">
+			<div class="section-head"><div><h2>Photo editor</h2><p class="subheading">Adjust a local image for brand identity, color, and tone.</p></div></div>
+			<div class="creative-actions"><label class="button-outline" for="designPhotoFile">Choose photo</label><input class="sr-only" id="designPhotoFile" type="file" accept="image/png,image/jpeg,image/webp" file-change="loadDesignPhoto(files)"><button class="button-outline" type="button" ng-click="resetDesignPhoto()" ng-disabled="!designStudio.photoUrl">Reset adjustments</button><button class="button-outline" type="button" ng-click="exportDesignPhoto()" ng-disabled="!designStudio.photoUrl">Export edited PNG</button><button class="button-quiet" type="button" ng-click="clearDesignPhoto()" ng-if="designStudio.photoUrl">Remove photo</button></div>
+			<p class="subheading" ng-if="designStudio.photoName">Editing {{ designStudio.photoName }} · stays in this browser</p>
+			<div class="photo-adjustments">
+				<label for="photoBrightness">Brightness <output>{{ designStudio.photoBrightness }}%</output></label><input id="photoBrightness" type="range" min="0" max="200" ng-model="designStudio.photoBrightness" ng-disabled="!designStudio.photoUrl">
+				<label for="photoContrast">Contrast <output>{{ designStudio.photoContrast }}%</output></label><input id="photoContrast" type="range" min="0" max="200" ng-model="designStudio.photoContrast" ng-disabled="!designStudio.photoUrl">
+				<label for="photoSaturation">Saturation <output>{{ designStudio.photoSaturation }}%</output></label><input id="photoSaturation" type="range" min="0" max="200" ng-model="designStudio.photoSaturation" ng-disabled="!designStudio.photoUrl">
+			</div>
+			<p class="subheading">This lightweight editor adjusts brightness, contrast, and saturation. Your original file is not changed.</p>
+		</article>
+		<article class="panel photo-preview-panel">
+			<div class="photo-empty-state" ng-if="!designStudio.photoUrl"><strong>Your photo preview</strong><span>Choose a PNG, JPEG, or WebP image up to 20 MB.</span></div>
+			<img id="designPhotoPreview" ng-if="designStudio.photoUrl" ng-src="{{ designStudio.photoUrl }}" ng-style="{'filter': 'brightness(' + designStudio.photoBrightness + '%) contrast(' + designStudio.photoContrast + '%) saturate(' + designStudio.photoSaturation + '%)'}" alt="Edited local photo preview">
+		</article>
+	</div>
+
+	<div class="magazine-workspace" ng-show="designStudio.tab === 'magazine'">
+		<article class="panel magazine-controls">
+			<div class="section-head"><div><h2>Magazine layout</h2><p class="subheading">Build a simple editorial cover and export a print-ready HTML file.</p></div></div>
+			<div class="field"><label for="magazineTitle">Cover headline</label><input class="text-input" id="magazineTitle" type="text" maxlength="100" ng-model="designStudio.magazineTitle"></div>
+			<div class="field"><label for="magazineSubtitle">Deck / subtitle</label><input class="text-input" id="magazineSubtitle" type="text" maxlength="180" ng-model="designStudio.magazineSubtitle"></div>
+			<div class="field"><label for="magazineStory">Cover story</label><textarea class="text-input magazine-story-input" id="magazineStory" maxlength="1400" ng-model="designStudio.magazineStory"></textarea></div>
+			<div class="field"><label for="magazineIssue">Issue label</label><input class="text-input" id="magazineIssue" type="text" maxlength="60" ng-model="designStudio.magazineIssue"></div>
+			<div class="creative-actions"><button class="button-primary" type="button" ng-click="exportMagazineLayout()">Export print-ready layout</button><span class="subheading">Open the HTML export and print or save as PDF.</span></div>
+		</article>
+		<article class="magazine-preview-panel" aria-label="Magazine cover preview">
+			<div class="magazine-preview" ng-style="{'--magazine-accent': designStudio.primaryColor}">
+				<div class="magazine-masthead">{{ designStudio.brandName || 'FIELDNOTE' }}<span>{{ designStudio.magazineIssue }}</span></div>
+				<img ng-if="designStudio.photoUrl" ng-src="{{ designStudio.photoUrl }}" alt="Cover photograph">
+				<div class="magazine-copy"><span class="magazine-kicker">THE CREATIVE JOURNAL</span><h2>{{ designStudio.magazineTitle }}</h2><p class="magazine-deck">{{ designStudio.magazineSubtitle }}</p><p>{{ designStudio.magazineStory }}</p></div>
+				<div class="magazine-footer">{{ designStudio.tagline }}</div>
+			</div>
+		</article>
+	</div>
+
+	<div class="video-workspace" ng-show="designStudio.tab === 'video'">
+		<article class="panel video-controls">
+			<div class="section-head"><div><h2>Video &amp; motion editor</h2><p class="subheading">Preview a local clip, set an in/out range, and design a title overlay.</p></div></div>
+			<div class="creative-actions"><label class="button-outline" for="designVideoFile">Choose video</label><input class="sr-only" id="designVideoFile" type="file" accept="video/*" file-change="loadDesignVideo(files)"><button class="button-outline" type="button" ng-click="clearDesignVideo()" ng-if="designStudio.videoUrl">Remove video</button></div>
+			<p class="subheading" ng-if="designStudio.videoName">{{ designStudio.videoName }} · processed locally in your browser</p>
+			<div class="field"><label for="videoTitleOverlay">Motion title</label><input class="text-input" id="videoTitleOverlay" type="text" maxlength="100" ng-model="designStudio.videoTitle" placeholder="Add a title to your clip"></div>
+			<div class="video-trim-fields"><div class="field"><label for="videoTrimStart">In point (seconds)</label><input class="text-input" id="videoTrimStart" type="number" min="0" step="0.1" ng-model="designStudio.videoStart"></div><div class="field"><label for="videoTrimEnd">Out point (seconds)</label><input class="text-input" id="videoTrimEnd" type="number" min="0" step="0.1" ng-model="designStudio.videoEnd"></div></div>
+			<div class="creative-actions"><button class="button-primary" type="button" ng-click="previewDesignVideo()" ng-disabled="!designStudio.videoReady">Preview selected range</button><button class="button-outline" type="button" ng-click="exportVideoEdit()">Export edit recipe (JSON)</button></div>
+			<p class="subheading">The edit recipe preserves your trim and title settings. Final video rendering is not available in this browser workspace.</p>
+		</article>
+		<article class="panel video-preview-panel">
+			<div class="video-canvas">
+				<video id="designVideoPreview" ng-if="designStudio.videoUrl" controls playsinline preload="metadata"></video>
+				<div class="video-title-overlay" ng-if="designStudio.videoTitle">{{ designStudio.videoTitle }}</div>
+				<div class="photo-empty-state" ng-if="!designStudio.videoUrl"><strong>Your video preview</strong><span>Choose a video to begin a local edit.</span></div>
+			</div>
+			<div class="video-timeline" aria-label="Clip timeline"><span>IN {{ designStudio.videoStart || 0 }}s</span><div><i ng-style="{'left': (designStudio.videoStart / (designStudio.videoEnd || 1) * 100) + '%', 'width': ((designStudio.videoEnd - designStudio.videoStart) / (designStudio.videoEnd || 1) * 100) + '%'}"></i></div><span>OUT {{ designStudio.videoEnd || 0 }}s</span></div>
+		</article>
+	</div>
+
+	<div class="privacy-workspace" ng-show="designStudio.tab === 'privacy'">
+		<div class="privacy-intro"><span class="privacy-shield" aria-hidden="true">✓</span><div><h2>Privacy-first creative workspace</h2><p>Your prototypes and sketches are private drafts. Nothing in this studio is published automatically.</p></div></div>
+		<div class="privacy-card-grid">
+			<article class="panel privacy-card"><span class="privacy-card-icon">01</span><h3>Local creative media</h3><p>Photos and video are previewed locally in your browser and are not uploaded to Fieldnote. Removing a media file clears it from the studio preview.</p></article>
+			<article class="panel privacy-card"><span class="privacy-card-icon">02</span><h3>Local draft storage</h3><p>Code, brand, and drawing drafts are saved only when you choose “Save on this device.” They stay in this browser's local storage and are not uploaded to Fieldnote. Clear saved drafts on shared devices.</p><button class="button-outline" type="button" ng-click="clearDesignDraft()">Remove saved draft</button></article>
+			<article class="panel privacy-card"><span class="privacy-card-icon">03</span><h3>Secure coding habits</h3><ul><li>Never paste passwords, API keys, or private learner data into a prototype.</li><li>Validate data on the server and enforce access rules there, too.</li><li>Render untrusted text as text; avoid <code>eval</code> and unsafe HTML injection.</li><li>Use HTTPS and collect only the personal data a feature truly needs.</li></ul></article>
+			<article class="panel privacy-card"><span class="privacy-card-icon">04</span><h3>Respect creative rights</h3><p>Use original designs or assets you have permission to use. Keep attribution and license details with third-party fonts, images, icons, and code. Fieldnote Learning content and original brand assets are protected by copyright.</p><p class="rights-notice">© {{ today | date:'yyyy' }} Fieldnote Learning. All rights reserved.</p></article>
+		</div>
+	</div>
+	<p class="design-studio-status" role="status" aria-live="polite">{{ designStudio.status }}</p>
+</section>
